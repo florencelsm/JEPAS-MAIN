@@ -1,0 +1,35 @@
+**/__pycache__/
+**/tokenized_bookcorpus/
+**profiler_logs/
+.vscode/
+lightning_logs/
+log/
+inference/
+checkpoints/
+misc/
+finetune/
+model/walkthroughs
+initial_weights/
+
+JEPA.drawio
+.$JEPA.drawio.bkp
+*.ipynb
+
+## DATA
+# Ignore contents of specific subfolders
+data/text/*
+data/image/*
+data/video/*
+data/audio/*
+
+# Allow the folders themselves
+!data/text/
+!data/image/
+!data/video/
+!data/audio/
+
+# And allow .gitkeep files inside them
+!data/text/.gitkeep
+!data/image/.gitkeep
+!data/video/.gitkeep
+!data/audio/.gitkeep

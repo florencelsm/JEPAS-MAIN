@@ -1,0 +1,38 @@
+[
+  {
+    "jpg": "train\\000000_frame.jpg",
+    "spec": "train\\000000_spec.npy"
+  },
+  {
+    "jpg": "train\\000001_frame.jpg",
+    "spec": "train\\000001_spec.npy"
+  },
+  {
+    "jpg": "train\\000002_frame.jpg",
+    "spec": "train\\000002_spec.npy"
+  },
+  {
+    "jpg": "train\\000003_frame.jpg",
+    "spec": "train\\000003_spec.npy"
+  },
+  {
+    "jpg": "train\\000004_frame.jpg",
+    "spec": "train\\000004_spec.npy"
+  },
+  {
+    "jpg": "train\\000005_frame.jpg",
+    "spec": "train\\000005_spec.npy"
+  },
+  {
+    "jpg": "train\\000006_frame.jpg",
+    "spec": "train\\000006_spec.npy"
+  },
+  {
+    "jpg": "train\\000007_frame.jpg",
+    "spec": "train\\000007_spec.npy"
+  },
+  {
+    "jpg": "train\\000008_frame.jpg",
+    "spec": "train\\000008_spec.npy"
+  }
+]
