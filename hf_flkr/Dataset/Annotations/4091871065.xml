@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='ASCII'?>
+<annotation>
+  <file_name>4091871065.jpg</file_name>
+  <person>
+    <bbox>
+      <type>ambient sound</type>
+      <xmin>97</xmin>
+      <ymin>94</ymin>
+      <xmax>183</xmax>
+      <ymax>159</ymax>
+    </bbox>
+  </person>
+  <person>
+    <bbox>
+      <type>ambient sound</type>
+      <xmin>1</xmin>
+      <ymin>1</ymin>
+      <xmax>256</xmax>
+      <ymax>256</ymax>
+    </bbox>
+  </person>
+  <person>
+    <bbox>
+      <type>ambient sound</type>
+      <xmin>2</xmin>
+      <ymin>1</ymin>
+      <xmax>256</xmax>
+      <ymax>254</ymax>
+    </bbox>
+  </person>
+</annotation>

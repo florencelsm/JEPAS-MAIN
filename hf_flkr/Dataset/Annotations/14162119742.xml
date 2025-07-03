@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='ASCII'?>
+<annotation>
+  <file_name>14162119742.jpg</file_name>
+  <person>
+    <bbox>
+      <type>ambient sound</type>
+      <xmin>6</xmin>
+      <ymin>7</ymin>
+      <xmax>256</xmax>
+      <ymax>184</ymax>
+    </bbox>
+  </person>
+  <person>
+    <bbox>
+      <type>ambient sound</type>
+      <xmin>1</xmin>
+      <ymin>2</ymin>
+      <xmax>256</xmax>
+      <ymax>252</ymax>
+    </bbox>
+  </person>
+</annotation>

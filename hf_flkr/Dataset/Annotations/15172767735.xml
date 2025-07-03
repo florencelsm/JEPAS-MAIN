@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='ASCII'?>
+<annotation>
+  <file_name>15172767735.jpg</file_name>
+  <person>
+    <bbox>
+      <type>object</type>
+      <xmin>105</xmin>
+      <ymin>1</ymin>
+      <xmax>256</xmax>
+      <ymax>254</ymax>
+    </bbox>
+    <bbox>
+      <type>object</type>
+      <xmin>4</xmin>
+      <ymin>150</ymin>
+      <xmax>253</xmax>
+      <ymax>249</ymax>
+    </bbox>
+  </person>
+  <person>
+    <bbox>
+      <type>object</type>
+      <xmin>1</xmin>
+      <ymin>1</ymin>
+      <xmax>256</xmax>
+      <ymax>256</ymax>
+    </bbox>
+  </person>
+  <person>
+    <bbox>
+      <type>object</type>
+      <xmin>2</xmin>
+      <ymin>35</ymin>
+      <xmax>250</xmax>
+      <ymax>249</ymax>
+    </bbox>
+  </person>
+</annotation>
