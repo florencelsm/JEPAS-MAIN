@@ -33,3 +33,5 @@ data/audio/*
 !data/image/.gitkeep
 !data/video/.gitkeep
 !data/audio/.gitkeep
+
+flickr-soundnet-dl/urls_144k.txt
