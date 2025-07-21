@@ -221,5 +221,32 @@
             "MODEL_SUMMARY_MAX_DEPTH": 3,
             "VAL_CHECK_INTERVAL": 0.25
         }
+    },
+    "audio": {
+        "dataset": {
+            "DATASET_PATH": "./dataset",
+            "SHUFFLE_DATASET": true
+        },
+        "experiment": {
+            "MODEL_NAME": "spec_vit",
+            "LR": 0.0001,
+            "BATCH_SIZE": 4,
+            "NUM_WORKERS": 2,
+            "PIN_MEMORY": true,
+            "PERSISTENT_WORKERS": true,
+            "PREFETCH_FACTOR": 2,
+            "SEED": 0,
+            "MAX_EPOCHS": 1
+        },
+        "runtime": {
+            "ACCELERATOR": "cpu",
+            "DEVICES": 1,
+            "PRECISION": "32-true",
+            "FLOAT32_MATMUL_PRECISION": "medium"
+        },
+        "tracking": {
+            "LOG_DIR": "lightning_logs",
+            "CHECKPOINT_DIR": "./checkpoints"
+        }
     }
 }

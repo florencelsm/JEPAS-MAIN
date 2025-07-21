@@ -43,6 +43,35 @@ class TokenEmbed1D(nn.Module):
         return x  # (b, n, e)
 
 
+
+class PatchEmbed1D(nn.Module):
+    """Waveform to Patch Embedding using a 1-D convolution."""
+
+    def __init__(
+        self,
+        waveform_len: int = 32000,
+        patch_size: int = 1024,
+        in_chans: int = 1,
+        embed_dim: int = 64,
+    ) -> None:
+        super().__init__()
+
+        self.patch_shape = (waveform_len // patch_size,)
+
+        self.conv = nn.Conv1d(
+            in_channels=in_chans,
+            out_channels=embed_dim,
+            kernel_size=patch_size,
+            stride=patch_size,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.conv(x)
+        x = rearrange(x, "b e l -> b l e")
+
+        return x
+    
+
 # Adapted from https://towardsdatascience.com/implementing-visualttransformer-in-pytorch-184f9f16f632
 class PatchEmbed2D(nn.Module):
     """
