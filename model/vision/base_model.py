@@ -8,6 +8,8 @@ from utils.types_utils import Number
 
 from ..predictor import Predictor
 from .vit import VisionTransformer
+from model.vision.vit import vit_base
+from model.audio.audio_zoo import spec_vit_base, Wave1DT
 
 # pylint: disable=pointless-string-statement
 
@@ -18,6 +20,7 @@ class JEPA_base(VisionTransformer):
         decoder_depth: int,
         num_target_blocks: int = 4,
         mode: Literal["test", "train"] = "train",
+        audio_backbone: str = "spec",
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -31,9 +34,9 @@ class JEPA_base(VisionTransformer):
             nn.LayerNorm(self.embed_dim) if self.post_enc_norm else nn.Identity()
         )
 
-        self.teacher_encoder = copy.deepcopy(self.encoder).to(
-            self.device
-        )  # copy student encoder
+        self.teacher_encoder = vit_base(img_size=224, patch_size=16).eval().to(self.device)
+        for p in self.teacher_encoder.parameters():
+            p.requires_grad = False
 
         # TODO: To help prevent colapse and prioritise expressive representations
         # in the encoder, the decoder should be underpowered with respect to the encoder.
@@ -42,6 +45,13 @@ class JEPA_base(VisionTransformer):
             num_heads=self.num_heads,
             depth=decoder_depth,
         )
+
+        if audio_backbone == "spec":
+            self.encoder = spec_vit_base().to(self.device)
+        elif audio_backbone == "wave":
+            self.encoder = Wave1DT(freeze_feat=True).to(self.device)
+        else:
+            raise ValueError(f"Unknown audio_backbone {audio_backbone}")
 
     @torch.no_grad()
     def get_target_blocks(
@@ -196,7 +206,8 @@ class JEPA_base(VisionTransformer):
 
     def forward_base(
         self,
-        x: torch.Tensor,
+        img_rgb: torch.Tensor,
+        aud_inp: torch.Tensor,
         target_patches: List[List[int]],
         context_patches: List[int],
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
@@ -206,7 +217,8 @@ class JEPA_base(VisionTransformer):
         Forward pass for generating predictions and targets within the JEPA architecture.
 
         Args:
-            x (torch.Tensor): Input tensor of shape: (batch_size, channels, img_height, img_width) if not self.is_video else (batch_size, channels, time, img_height, img_width).
+            img_rgb (torch.Tensor): Image tensor for the teacher branch.
+            aud_inp (torch.Tensor): Audio tensor for the student branch.
             target_patches (List[List[int]]): A list of lists containing indices of patches for each target block.
             context_patches (List[int]): A list of patch indices for the context block excluding target patches.
 
@@ -227,38 +239,80 @@ class JEPA_base(VisionTransformer):
         During training mode, Joint Embedding (with student and teacher encoder) occurs,
         thus, `self.forward_vit()` need only patch embed - target and context blocks will
         be extracted and encoded using the teacher and student encoders respectively.
-        """
-        # NOTE: Positional encoding applied to `x` during `self.forward_vit()`
-        x: torch.Tensor = self.forward_vit(
-            x=x,
-            patch_embed_only=not test_mode,
-        )
-        batch_size, num_patches, embed_dim = (  # pylint: disable=unused-variable
-            x.shape
-        )  # where num_patches = (output_height * output_width) if not self.is_video else (output_t * output_height * output_width)
 
-        # If in test mode, return the full embedding using the student encoder
+        NOTE: teacher processes the image while the student processes the audio.
+        Target blocks are produced from the teacher and context from the student.
+        """
+        # # NOTE: Positional encoding applied to `x` during `self.forward_vit()`
+        # x: torch.Tensor = self.forward_vit(
+        #     x=x,
+        #     patch_embed_only=not test_mode,
+        # )
+        # batch_size, num_patches, embed_dim = (  # pylint: disable=unused-variable
+        #     x.shape
+        # )  # where num_patches = (output_height * output_width) if not self.is_video else (output_t * output_height * output_width)
+
+        
+        # # If in test mode, return the full embedding using the student encoder
+        # if test_mode:
+        #     return x  # (batch_size, num_patches, embed_dim)
+        
+        
+        # ------- Teacher branch (image) -------
+        x_img = self.teacher_encoder.forward_vit(
+            img_rgb,
+            patch_embed_only=True,
+        )
+
+        # ------- Student branch (audio) -------
+        if aud_inp.ndim == 4:
+            x_aud = self.encoder.forward_vit(aud_inp, patch_embed_only=True)
+        else:
+            x_aud = self.encoder(aud_inp)
+
+        batch_size, num_patches, embed_dim = x_img.shape
+
         if test_mode:
-            return x  # (batch_size, num_patches, embed_dim)
+            return x_aud
+        
 
         ### Get target embeddings using the target encoder
         target_blocks: torch.Tensor = (
-            self.get_target_blocks(  # NOTE: `target_blocks` contain positional information from `x`, which underwent the `self.forward_vit()` pass
-                x=x,
+            self.get_target_blocks(
+                x_img,
                 target_patches=target_patches,
             )
         )
+         
+
+        # ### Get target embeddings using the target encoder
+        # target_blocks: torch.Tensor = (
+        #     self.get_target_blocks(  # NOTE: `target_blocks` contain positional information from `x`, which underwent the `self.forward_vit()` pass
+        #         x=x,
+        #         target_patches=target_patches,
+        #     )
+        # )
+
         num_target_blocks, batch_size, target_block_size, embed_dim = (
             target_blocks.shape
         )
 
         ### Get context embeddings excluding the target patches
+        # context_block: torch.Tensor = (
+        #     self.get_context_block(  # NOTE: `context_block` contains positional information from `x`, which underwent the `self.forward_vit()` pass
+        #         x=x,
+        #         context_patches=context_patches,
+        #     )
+        # )
+
         context_block: torch.Tensor = (
-            self.get_context_block(  # NOTE: `context_block` contains positional information from `x`, which underwent the `self.forward_vit()` pass
-                x=x,
+            self.get_context_block(
+                x_aud,
                 context_patches=context_patches,
             )
         )
+
+
         batch_size, num_context_patches, embed_dim = context_block.shape
 
         context_encoding: torch.Tensor = (

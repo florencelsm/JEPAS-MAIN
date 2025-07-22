@@ -1,8 +1,8 @@
-from .audio_dataset import AudioImageDataset
-from .audio_datamodule import AudioDataModule, create_audio_datamodule
+from .windows_audio_dataset import WindowsAudioImageDataset
+from .windows_audio_datamodule import WindowsAudioDataModule, create_windows_audio_datamodule
 
 __all__ = [
-    "AudioImageDataset",
-    "AudioDataModule",
-    "create_audio_datamodule",
+    "WindowsAudioImageDataset",
+    "WindowsAudioDataModule",
+    "create_windows_audio_datamodule",
 ]

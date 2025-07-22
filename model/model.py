@@ -318,7 +318,9 @@ class IJEPA(JEPA_base, pl.LightningModule):
         )
 
         return self.forward_base(
-            x=x,  # (batch_size, channels, img_height, img_width)
+            # x=x,  # (batch_size, channels, img_height, img_width)
+            img_rgb=x,
+            aud_inp=x,
             target_patches=target_patches,
             context_patches=context_patches,
         )
@@ -387,11 +389,18 @@ class IJEPA(JEPA_base, pl.LightningModule):
             self.context_scale[0], self.context_scale[1]
         )
 
+        if isinstance(batch, (list, tuple)):
+            img = batch[0]
+            aud = batch[1] if len(batch) > 1 else batch[0]
+        else:
+            img = aud = batch
+
         (
             y_student,  # (num_target_blocks, batch_size, target_block_size, embed_dim)
             y_teacher,  # (num_target_blocks, batch_size, target_block_size, embed_dim)
         ) = self(
-            x=batch,  # (batch_size, channels, img_height, img_width)
+            img_rgb=img,
+            aud_inp=aud,
             target_aspect_ratio=target_aspect_ratio,
             target_scale=target_scale,
             context_aspect_ratio=self.context_aspect_ratio,
@@ -436,11 +445,18 @@ class IJEPA(JEPA_base, pl.LightningModule):
             self.context_scale[0], self.context_scale[1]
         )
 
+        if isinstance(batch, (list, tuple)):
+            img = batch[0]
+            aud = batch[1] if len(batch) > 1 else batch[0]
+        else:
+            img = aud = batch
+
         (
             y_student,  # (num_target_blocks, batch_size, target_block_size, embed_dim)
             y_teacher,  # (num_target_blocks, batch_size, target_block_size, embed_dim)
         ) = self(
-            x=batch,
+            img_rgb=img,
+            aud_inp=aud,
             target_aspect_ratio=target_aspect_ratio,
             target_scale=target_scale,
             context_aspect_ratio=self.context_aspect_ratio,
@@ -485,8 +501,15 @@ class IJEPA(JEPA_base, pl.LightningModule):
 
         self.mode = "test"
 
+        if isinstance(batch, (list, tuple)):
+            img = batch[0]
+            aud = batch[1] if len(batch) > 1 else batch[0]
+        else:
+            img = aud = batch
+
         return self(  # Return only student embedding using the student (ViT) encoder
-            x=batch,
+            img_rgb=img,
+            aud_inp=aud,
             target_aspect_ratio=target_aspect_ratio,
             target_scale=target_scale,
             context_aspect_ratio=self.context_aspect_ratio,
@@ -850,7 +873,9 @@ class VJEPA(JEPA_base, pl.LightningModule):
         )
 
         return self.forward_base(
-            x=x,
+            # x=x,
+            img_rgb=x,
+            aud_inp=x,
             target_patches=target_patches,
             context_patches=context_patches,
         )
@@ -1044,8 +1069,15 @@ class VJEPA(JEPA_base, pl.LightningModule):
 
         self.mode = "test"
 
+        if isinstance(batch, (list, tuple)):
+            img = batch[0]
+            aud = batch[1] if len(batch) > 1 else batch[0]
+        else:
+            img = aud = batch
+
         return self(  # Return only student embedding using the student (ViT) encoder
-            x=batch,
+            img_rgb=img,
+            aud_inp=aud,
             target_aspect_ratio=target_aspect_ratio,
             target_scale=target_scale,
             context_aspect_ratio=self.context_aspect_ratio,

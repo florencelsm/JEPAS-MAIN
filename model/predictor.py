@@ -136,3 +136,42 @@ class Predictor(nn.Module):
         ]  # (batch_size, num_target_patches, embed_dim)
 
         return prediction
+
+
+
+class MoEPredictor(nn.Module):
+    """Predictor with a light mixture-of-experts router."""
+
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int,
+        depth: int,
+        layer_dropout: float = 0.0,
+        predictor_embed_dim: Optional[int] = None,
+        num_experts: int = 4,
+    ) -> None:
+        super().__init__()
+        self.router = nn.Linear(embed_dim, num_experts)
+        self.experts = nn.ModuleList(
+            [
+                Predictor(
+                    embed_dim=embed_dim,
+                    num_heads=num_heads,
+                    depth=depth,
+                    layer_dropout=layer_dropout,
+                    predictor_embed_dim=predictor_embed_dim,
+                )
+                for _ in range(num_experts)
+            ]
+        )
+
+    def forward(self, context_encoding: torch.Tensor, target_masks: torch.Tensor) -> torch.Tensor:
+        gate_logits = self.router(target_masks)
+        gates = torch.softmax(gate_logits, dim=-1)  # (..., num_experts)
+        expert_outputs = [
+            expert(context_encoding, target_masks) for expert in self.experts
+        ]
+        stacked = torch.stack(expert_outputs, dim=-1)
+        out = torch.sum(stacked * gates.unsqueeze(-2), dim=-1)
+        return out

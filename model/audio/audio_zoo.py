@@ -1,6 +1,6 @@
-from typing import Callable, Dict
+import torchaudio
 
-from model.model import IJEPA
+from typing import Callable, Dict
 from model.vision.vit import VisionTransformer
 from model.patch_embed import PatchEmbed1D
 
@@ -30,7 +30,28 @@ def create_wave_1dt(embed_dim: int = 768) -> VisionTransformer:
     return vit
 
 
+def create_spec_vit_pretrained(embed_dim: int = 768) -> VisionTransformer:
+    model = create_spec_vit(embed_dim)
+    bundle = torchaudio.pipelines.AST_BASE
+    ast = bundle.get_model()
+    model.load_state_dict(ast.state_dict(), strict=False)
+    return model
+
+
+def create_wave_1dt_pretrained(embed_dim: int = 768) -> VisionTransformer:
+    model = create_wave_1dt(embed_dim)
+    bundle = torchaudio.pipelines.WAV2VEC2_BASE
+    wav = bundle.get_model()
+    state_dict = {
+        k: v for k, v in wav.state_dict().items() if k in model.state_dict()
+    }
+    model.load_state_dict(state_dict, strict=False)
+    return model
+
+
 audio_model_builders: Dict[str, Callable[[], VisionTransformer]] = {
-    "spec_vit": lambda: create_spec_vit(),
-    "wave_1dt": lambda: create_wave_1dt(),
+    "spec_vit": create_spec_vit,
+    "wave_1dt": create_wave_1dt,
+    "spec_vit_pretrain": create_spec_vit_pretrained,
+    "wave_1dt_pretrain": create_wave_1dt_pretrained,
 }
