@@ -21,11 +21,13 @@ class JEPA_base(VisionTransformer):
         num_target_blocks: int = 4,
         mode: Literal["test", "train"] = "train",
         audio_backbone: str = "spec",
+        teacher_mask_ratio: float = 0.0,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self.num_target_blocks = num_target_blocks
         self.mode = mode.lower()
+        self.teacher_mask_ratio = teacher_mask_ratio
 
         self.mask_token = nn.Parameter(torch.randn(1, 1, self.embed_dim))
         nn.init.trunc_normal_(self.mask_token, 0.02)

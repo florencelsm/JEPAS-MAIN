@@ -32,6 +32,7 @@ class IJEPA(JEPA_base, pl.LightningModule):
         m: float = 0.996,  # momentum
         momentum_limits: Tuple[float, float] = (0.996, 1.0),
         audio_backbone: str = "spec",
+        teacher_mask_ratio: float = 0.0,
         testing_purposes_only: bool = False,
         **kwargs,
     ):
@@ -41,6 +42,7 @@ class IJEPA(JEPA_base, pl.LightningModule):
             decoder_depth=decoder_depth,
             num_target_blocks=num_target_blocks,
             audio_backbone=audio_backbone,
+            teacher_mask_ratio=teacher_mask_ratio,
             **kwargs,
         )
 
@@ -57,6 +59,7 @@ class IJEPA(JEPA_base, pl.LightningModule):
         self.target_scale_interval = target_scale_interval
         self.context_aspect_ratio = context_aspect_ratio
         self.context_scale = context_scale
+        self.teacher_mask_ratio = teacher_mask_ratio
 
         # Optimisation parameters
         self.momentum_limits = momentum_limits
@@ -340,7 +343,7 @@ class IJEPA(JEPA_base, pl.LightningModule):
         """
         # Enable eval mode to disable layers like dropout and batch normalization
         student_model: nn.Module = self.encoder.eval()
-        teacher_model: nn.Module = self.teacher_encoder.eval()
+        teacher_model: nn.Module = self.teacher_encoder.encoder.eval()
 
         """
         Manual parameter updates:

@@ -16,7 +16,7 @@ if __name__ == "__main__":
     ai_cfg = cfg.get("audio_image", {})
 
     exp_cfg = ai_cfg.get("experiment", {})
-    use_spec = ai_cfg.get("dataset", {}).get("USE_SPEC", True)
+    use_spec = ai_cfg.get("dataset", {}).get("USE_SPEC", False)
     student_name = "spec_vit_pretrain" if use_spec else "wave_1dt_pretrain"
     teacher_size = exp_cfg.get("TEACHER_SIZE", "base")
     lr = exp_cfg.get("LR", 1e-4)
