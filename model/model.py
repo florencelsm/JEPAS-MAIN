@@ -31,6 +31,7 @@ class IJEPA(JEPA_base, pl.LightningModule):
         num_target_blocks: int = 4,  # number of distinct target blocks per image
         m: float = 0.996,  # momentum
         momentum_limits: Tuple[float, float] = (0.996, 1.0),
+        audio_backbone: str = "spec",
         testing_purposes_only: bool = False,
         **kwargs,
     ):
@@ -39,8 +40,12 @@ class IJEPA(JEPA_base, pl.LightningModule):
             self,
             decoder_depth=decoder_depth,
             num_target_blocks=num_target_blocks,
+            audio_backbone=audio_backbone,
             **kwargs,
         )
+
+        self.decoder_depth = decoder_depth
+        
         if not testing_purposes_only:
             self.save_hyperparameters()
 
@@ -295,7 +300,9 @@ class IJEPA(JEPA_base, pl.LightningModule):
 
     def forward(  # pylint: disable=arguments-differ
         self,
-        x: torch.Tensor,
+        *,
+        audio: torch.Tensor,
+        image: torch.Tensor,
         target_aspect_ratio: float,
         target_scale: float,
         context_aspect_ratio: Number,
@@ -318,9 +325,8 @@ class IJEPA(JEPA_base, pl.LightningModule):
         )
 
         return self.forward_base(
-            # x=x,  # (batch_size, channels, img_height, img_width)
-            img_rgb=x,
-            aud_inp=x,
+            audio=audio,
+            image=image,
             target_patches=target_patches,
             context_patches=context_patches,
         )
@@ -389,18 +395,28 @@ class IJEPA(JEPA_base, pl.LightningModule):
             self.context_scale[0], self.context_scale[1]
         )
 
-        if isinstance(batch, (list, tuple)):
-            img = batch[0]
-            aud = batch[1] if len(batch) > 1 else batch[0]
-        else:
-            img = aud = batch
+        audio_tensor = batch
+        image_tensor = batch
+
+        if isinstance(batch, dict):
+            if "image" in batch:
+                image_tensor = batch["image"]
+            elif "img_rgb" in batch:
+                image_tensor = batch["img_rgb"]
+            elif "img" in batch:
+                image_tensor = batch["img"]
+            if "audio" in batch:
+                audio_tensor = batch["audio"]
+            else:
+                audio_tensor = image_tensor
+
 
         (
             y_student,  # (num_target_blocks, batch_size, target_block_size, embed_dim)
             y_teacher,  # (num_target_blocks, batch_size, target_block_size, embed_dim)
         ) = self(
-            img_rgb=img,
-            aud_inp=aud,
+            audio=audio_tensor,
+            image=image_tensor,
             target_aspect_ratio=target_aspect_ratio,
             target_scale=target_scale,
             context_aspect_ratio=self.context_aspect_ratio,
@@ -445,18 +461,27 @@ class IJEPA(JEPA_base, pl.LightningModule):
             self.context_scale[0], self.context_scale[1]
         )
 
-        if isinstance(batch, (list, tuple)):
-            img = batch[0]
-            aud = batch[1] if len(batch) > 1 else batch[0]
-        else:
-            img = aud = batch
+        audio_tensor = batch
+        image_tensor = batch
+
+        if isinstance(batch, dict):
+            if "image" in batch:
+                image_tensor = batch["image"]
+            elif "img_rgb" in batch:
+                image_tensor = batch["img_rgb"]
+            elif "img" in batch:
+                image_tensor = batch["img"]
+            if "audio" in batch:
+                audio_tensor = batch["audio"]
+            else:
+                audio_tensor = image_tensor
 
         (
             y_student,  # (num_target_blocks, batch_size, target_block_size, embed_dim)
             y_teacher,  # (num_target_blocks, batch_size, target_block_size, embed_dim)
         ) = self(
-            img_rgb=img,
-            aud_inp=aud,
+            audio=audio_tensor,
+            image=image_tensor,
             target_aspect_ratio=target_aspect_ratio,
             target_scale=target_scale,
             context_aspect_ratio=self.context_aspect_ratio,
@@ -501,15 +526,24 @@ class IJEPA(JEPA_base, pl.LightningModule):
 
         self.mode = "test"
 
-        if isinstance(batch, (list, tuple)):
-            img = batch[0]
-            aud = batch[1] if len(batch) > 1 else batch[0]
-        else:
-            img = aud = batch
+        audio_tensor = batch
+        image_tensor = batch
+
+        if isinstance(batch, dict):
+            if "image" in batch:
+                image_tensor = batch["image"]
+            elif "img_rgb" in batch:
+                image_tensor = batch["img_rgb"]
+            elif "img" in batch:
+                image_tensor = batch["img"]
+            if "audio" in batch:
+                audio_tensor = batch["audio"]
+            else:
+                audio_tensor = image_tensor
 
         return self(  # Return only student embedding using the student (ViT) encoder
-            img_rgb=img,
-            aud_inp=aud,
+            audio=audio_tensor,
+            image=image_tensor,
             target_aspect_ratio=target_aspect_ratio,
             target_scale=target_scale,
             context_aspect_ratio=self.context_aspect_ratio,

@@ -103,6 +103,34 @@ class VisionTransformer(nn.Module):
         x = self.post_enc_norm_vit(x)  # (batch, num_patches, embed_dim)
 
         return x
+    
+    # ------------------------------------------------------------------ #
+    # NEW : public forward – 兼容「原始图像/视频」和「已 patch-embed 的 token」
+    # ------------------------------------------------------------------ #
+    def forward(
+        self,
+        x: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        patch_embed_only: bool = False,
+    ) -> torch.Tensor:
+        """
+        统一入口：
+        • (B, C, H, W) or (B, C, T, H, W) → 像以前一样走 `forward_vit`.
+        • (B, N, E) 已是 patch-token（含位置编码）→ 直接送 Encoder.
+        """
+        # ── 情况 1：输入还是原图 / 视频 ──────────────────────────────────
+        if x.ndim in (4, 5):
+            return self.forward_vit(x, attention_mask, patch_embed_only)
+
+        # ── 情况 2：输入已是 patch-tokens ───────────────────────────────
+        if x.ndim == 3:                                          # (B, N, E)
+            if patch_embed_only:                                 # 只想要 token 本身
+                return x
+            x = self.encoder(x, attn_mask=attention_mask)        # 编码
+            x = self.post_enc_norm_vit(x)
+            return x
+
+        raise ValueError(f"[VisionTransformer] unexpected input shape: {x.shape}")
 
 
 def vit_nano(img_size, patch_size=16, in_chans=3, num_frames=1, **kwargs):
