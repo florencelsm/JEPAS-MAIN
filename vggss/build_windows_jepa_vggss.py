@@ -1,22 +1,26 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-build_windows_jepa_vggss.py  (root-level version)
+build_windows_jepa_vggss.py  (root-level version, self-contained)
 
-• 默认读取   ./vgg_ss_processed_data/  作为 --src
-• 默认读取   ./vggss/vggss.json        作为元数据
-• 默认输出到 ./vggss_jepa/             (可用 --dst 自定义)
+默认目录
+--------
+./vgg_ss_processed_data/              --src   (images/ spectrograms/ waveforms/)
+./vggss/vggss.json                    --json  (可缺；仅提供 bbox)
+./vggss_jepa/                         --dst   (输出 processed/ 与 metadata/)
 
-生成：
-    vggss_jepa/
-      ├─ processed/
-      │    ├─ img_npy/
-      │    ├─ wav_npy/
-      │    └─ mel224_npy/
-      └─ metadata/
-           ├─ windows_jepa.parquet
-           └─ split.yaml
+输出结构
+--------
+vggss_jepa/
+ ├─ processed/
+ │    ├─ img_npy/       <uid>.npy   # RGB 224×224 float32[0,1]
+ │    ├─ mel224_npy/    <uid>.npy   # 224×224 float32[0,1]
+ │    └─ wav_npy/       <uid>.npy   # 16-kHz waveform
+ └─ metadata/
+      ├─ windows_jepa.parquet  (缺 parquet 引擎时写 windows_jepa.csv)
+      └─ split.yaml            # train/val/test 按 video-id 随机 70/15/15
 """
+from __future__ import annotations
 import argparse, os, random, json, yaml, shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -28,165 +32,176 @@ from PIL import Image
 from tqdm import tqdm
 
 
-# -------------------------------------------------------------------------- #
-# Argument parsing                                                           #
-# -------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# CLI                                                                         #
+# --------------------------------------------------------------------------- #
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
-    p.add_argument("--src", type=Path, default=Path("./vgg_ss_processed_data"),
-                   help="Folder produced by previous download/convert scripts.")
-    p.add_argument("--json", type=Path, default=Path("./vggss/vggss.json"),
-                   help="Path to vggss.json metadata file.")
-    p.add_argument("--dst", type=Path, default=Path("./vggss_jepa"),
-                   help="Output root folder to create.")
-    p.add_argument("--neg-pool-size", type=int, default=30,
-                   help="#cross-video negatives per sample.")
-    p.add_argument("--workers", type=int, default=8,
-                   help="ThreadPool size for image/spec conversion.")
+    p.add_argument("--src",  type=Path, default=Path("vgg_ss_processed_data"),
+                   help="Folder containing images/, spectrograms/, waveforms/")
+    p.add_argument("--json", type=Path, default=Path("vggss/vggss.json"),
+                   help="vggss.json for bbox (optional)")
+    p.add_argument("--dst",  type=Path, default=Path("vggss_jepa"),
+                   help="Output root; processed/ & metadata/ created inside")
+    p.add_argument("--workers", type=int, default=8)
+    p.add_argument("--neg-pool", type=int, default=30)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--train-ratio", type=float, default=0.70)
+    p.add_argument("--val-ratio",   type=float, default=0.15)
     return p.parse_args()
 
 
-# -------------------------------------------------------------------------- #
-# Helpers                                                                    #
-# -------------------------------------------------------------------------- #
-def jpg_to_npy(src: Path, dst: Path) -> None:
+# --------------------------------------------------------------------------- #
+# helpers                                                                     #
+# --------------------------------------------------------------------------- #
+def jpg_to_npy(src: Path, dst: Path):
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         return
-    arr = np.asarray(Image.open(src).convert("RGB"), dtype=np.float32) / 255.0
+    arr = np.asarray(Image.open(src).convert("RGB"), np.float32) / 255.0
     np.save(dst, arr)
 
-def png_to_npy(src: Path, dst: Path) -> None:
+
+def png_to_npy(src: Path, dst: Path):
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         return
-    arr = np.asarray(Image.open(src).convert("L"), dtype=np.float32) / 255.0
+    arr = np.asarray(Image.open(src).convert("L"), np.float32) / 255.0
     np.save(dst, arr)
 
-def hardlink_or_copy(src: Path, dst: Path) -> None:
+
+def link_or_copy(src: Path, dst: Path):
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         return
     try:
-        os.link(src, dst)   # hard-link (same device, POSIX)
+        os.link(src, dst)                  # same-disk hard-link
     except (AttributeError, OSError):
-        shutil.copy2(src, dst)  # fallback
+        shutil.copy2(src, dst)             # fallback copy
 
 
-# -------------------------------------------------------------------------- #
-# Main                                                                       #
-# -------------------------------------------------------------------------- #
-def main() -> None:
+def safe_to_parquet(df: pd.DataFrame, path: Path):
+    try:
+        df.to_parquet(path, index=False)
+        print(f"[INFO] parquet saved → {path}")
+    except (ImportError, ValueError, OSError) as e:
+        alt = path.with_suffix(".csv")
+        df.to_csv(alt, index=False)
+        print(f"[WARN] parquet engine unavailable ({e}). CSV saved → {alt}")
+
+
+# --------------------------------------------------------------------------- #
+# main                                                                        #
+# --------------------------------------------------------------------------- #
+def main():
     args = parse_args()
-    random.seed(args.seed)
-    np.random.seed(args.seed)
+    rng = random.Random(args.seed)
 
-    SRC: Path = args.src.resolve()
-    DST: Path = args.dst.resolve()
-    JSON: Path = args.json.resolve()
+    src = args.src.resolve()
+    dst = args.dst.resolve()
+    meta_json = args.json.resolve()
 
-    if not SRC.exists():
-        raise FileNotFoundError(f"--src folder not found: {SRC}")
-    if not JSON.is_file():
-        raise FileNotFoundError(f"--json file not found: {JSON}")
+    if not src.exists():
+        raise FileNotFoundError(f"--src not found: {src}")
 
-    (DST / "processed").mkdir(parents=True, exist_ok=True)
-    (DST / "metadata").mkdir(exist_ok=True)
+    # ------- src sub-folders ------- #
+    src_imgs  = src / "images"
+    src_specs = src / "spectrograms"
+    src_wavs  = src / "waveforms"
+    for p in (src_imgs, src_specs, src_wavs):
+        if not p.is_dir():
+            raise FileNotFoundError(f"Missing folder: {p}")
 
-    # -------------------------- load json metadata ----------------------- #
-    with open(JSON, "r") as f:
-        raw_entries: List[Dict] = json.load(f)
-    raw_map = {e["file"]: e for e in raw_entries}
+    # ------- dst processed folders ------- #
+    p_img = dst / "processed" / "img_npy"
+    p_mel = dst / "processed" / "mel224_npy"
+    p_wav = dst / "processed" / "wav_npy"
+    for p in (p_img, p_mel, p_wav):
+        p.mkdir(parents=True, exist_ok=True)
+    (dst / "metadata").mkdir(parents=True, exist_ok=True)
 
-    # -------------------------- discover files --------------------------- #
-    img_dir   = SRC / "images"
-    wav_dir   = SRC / "waveforms"
-    spec_dir  = SRC / "spectrograms"
-
-    jpgs  = {p.stem: p for p in img_dir.glob("*.jpg")}
-    wavs  = {p.stem: p for p in wav_dir.glob("*.npy")}
-    pngs  = {p.stem: p for p in spec_dir.glob("*.png")}
-
-    print(f"Discovered {len(jpgs)} images  |  {len(wavs)} waveforms  |  {len(pngs)} specs")
-
-    # --------------------- convert jpg/png to npy ------------------------ #
-    img_npy_dir  = DST / "processed" / "img_npy"
-    mel_npy_dir  = DST / "processed" / "mel224_npy"
-    wav_npy_dir  = DST / "processed" / "wav_npy"   # hard-link/复制
-
+    # ------- step 1: convert / link -------------------------------------- #
+    print("[STEP 1] Converting images & spectrograms → npy, linking wavs")
     tasks = []
-    with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        for uid, jpg_p in jpgs.items():
-            tasks.append(ex.submit(jpg_to_npy, jpg_p, img_npy_dir / f"{uid}.npy"))
-        for uid, png_p in pngs.items():
-            tasks.append(ex.submit(png_to_npy, png_p, mel_npy_dir / f"{uid}.npy"))
-        for _ in tqdm(as_completed(tasks), total=len(tasks), ncols=80, desc="Converting"):
+    with ThreadPoolExecutor(args.workers) as ex:
+        # images
+        for jp in src_imgs.glob("*.jpg"):
+            tasks.append(ex.submit(jpg_to_npy, jp, p_img / f"{jp.stem}.npy"))
+        # spectrograms
+        for pp in src_specs.glob("*.png"):
+            tasks.append(ex.submit(png_to_npy, pp, p_mel / f"{pp.stem}.npy"))
+        # wav_npy 直接硬链/复制
+        for wp in src_wavs.glob("*.npy"):
+            tasks.append(ex.submit(link_or_copy, wp, p_wav / wp.name))
+        for _ in tqdm(as_completed(tasks), total=len(tasks), ncols=80):
             pass
 
-    # --------------------- build metadata rows --------------------------- #
+    # ------- step 2: collect valid uids ---------------------------------- #
+    imgs = {f.stem for f in p_img.glob("*.npy")}
+    wavs = {f.stem for f in p_wav.glob("*.npy")}
+    mels = {f.stem for f in p_mel.glob("*.npy")}
+    uids = sorted(imgs & wavs & mels)
+    print(f"[INFO] Triplets present = {len(uids)}")
+
+    if not uids:
+        raise RuntimeError("No complete img/wav/mel triplet found. Abort.")
+
+    # ------- bbox map (optional) ----------------------------------------- #
+    bbox_map: Dict[str, List] = {}
+    if meta_json.is_file():
+        with open(meta_json, "r", encoding="utf-8") as f:
+            bbox_map = {e["file"]: e.get("bbox", []) for e in json.load(f)}
+        print(f"[INFO] bbox entries loaded = {len(bbox_map)}")
+
+    # ------- build DataFrame --------------------------------------------- #
     rows = []
-    for uid, wav_src in wavs.items():
-        if uid not in jpgs or uid not in pngs:
-            print(f"[warn] trio missing for {uid}, skip")
-            continue
-
-        wav_dst = wav_npy_dir / f"{uid}.npy"
-        hardlink_or_copy(wav_src, wav_dst)
-        wav_np = np.load(wav_dst, mmap_mode="r")
-
-        entry = raw_map.get(uid)
-        if entry is None:
-            print(f"[warn] {uid} not found in metadata json, skip")
-            continue
-
+    for uid in uids:
+        wav_np = np.load(p_wav / f"{uid}.npy", mmap_mode="r")
         rows.append({
             "uid": uid,
             "vid": uid.split("_")[0],
-            "img_path": str((img_npy_dir / f"{uid}.npy").relative_to(DST)),
-            "wav_path": str((wav_npy_dir / f"{uid}.npy").relative_to(DST)),
-            "mel224_path": str((mel_npy_dir / f"{uid}.npy").relative_to(DST)),
-            "bbox": entry.get("bbox", []),
+            "img_path": str((p_img / f"{uid}.npy").relative_to(dst)),
+            "wav_path": str((p_wav / f"{uid}.npy").relative_to(dst)),
+            "mel224_path": str((p_mel / f"{uid}.npy").relative_to(dst)),
+            "bbox": json.dumps(bbox_map.get(uid, [])),
             "start_sample": 0,
             "num_samples": int(wav_np.shape[0]),
-            "neg_xvid": [],     # later
-            "neg_intra": -1,    # later
+            "neg_xvid": [],   # to be filled
+            "neg_intra": -1,
         })
 
     df = pd.DataFrame(rows)
-    print(f"Metadata rows kept: {len(df)}")
 
-    # --------------------- build negative pools -------------------------- #
+    # ------- negative pools ---------------------------------------------- #
     all_idx = df.index.tolist()
     vid_groups = df.groupby("vid").groups
-    for idx, row in df.iterrows():
-        # inter-vid negatives
-        others = [i for i in all_idx if df.at[i, "vid"] != row["vid"]]
-        df.at[idx, "neg_xvid"] = random.sample(
-            others, min(args.neg_pool_size, len(others))
-        )
-        # intra-vid negative (if video有多clip)
-        same = [i for i in vid_groups[row["vid"]] if i != idx]
-        df.at[idx, "neg_intra"] = random.choice(same) if same else -1
+    for i, row in df.iterrows():
+        others = [j for j in all_idx if df.at[j, "vid"] != row["vid"]]
+        df.at[i, "neg_xvid"] = rng.sample(others, min(args.neg_pool, len(others)))
+        same = [j for j in vid_groups[row["vid"]] if j != i]
+        df.at[i, "neg_intra"] = rng.choice(same) if same else -1
+    df["neg_xvid"] = df["neg_xvid"].apply(json.dumps)
 
-    # --------------------- save parquet & split -------------------------- #
-    meta_dir = DST / "metadata"
-    parquet_path = meta_dir / "windows_jepa.parquet"
-    df.to_parquet(parquet_path, index=False)
-    print(f"✓ Saved table: {parquet_path}")
+    # ------- save windows_jepa table ------------------------------------- #
+    table_path = dst / "metadata" / "windows_jepa.parquet"
+    safe_to_parquet(df, table_path)
 
-    # split.yaml
-    split_dict = {"train": [], "val": [], "test": []}
-    for uid, ent in raw_map.items():
-        split_dict[ent.get("split", "train")].append(uid)
-    with open(meta_dir / "split.yaml", "w") as f:
-        yaml.safe_dump(split_dict, f)
-    print(f"✓ Saved split file: {meta_dir / 'split.yaml'}")
+    # ------- split.yaml --------------------------------------------------- #
+    vids = sorted(df.vid.unique())
+    rng.shuffle(vids)
+    n = len(vids)
+    n_train = int(n * args.train_ratio)
+    n_val   = int(n * args.val_ratio)
+    split = {
+        "train": vids[:n_train],
+        "val":   vids[n_train:n_train + n_val],
+        "test":  vids[n_train + n_val:],
+    }
+    with open(dst / "metadata" / "split.yaml", "w") as f:
+        yaml.safe_dump(split, f)
+    print(f"[INFO] split.yaml written ({len(split['train'])}/{len(split['val'])}/{len(split['test'])} vids)")
 
-    print("\nCompleted.  Directory structure:")
-    for sub in ["img_npy", "wav_npy", "mel224_npy"]:
-        print(f"  {DST/'processed'/sub}  (#={len(list((DST/'processed'/sub).glob('*.npy')))})")
-    print("Ready for WindowsAudioImageDataset(root='vggss_jepa').")
+    print("\n[FINISHED] Dataset ready at", dst)
 
 
 if __name__ == "__main__":

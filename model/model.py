@@ -555,9 +555,10 @@ class IJEPA(JEPA_base, pl.LightningModule):
 
     def on_after_backward(self) -> None:
         self.update_momentum(self.m)
+        steps = max(1, getattr(self.trainer, "estimated_stepping_batches", 1))
         self.m += (
             self.momentum_limits[1] - self.momentum_limits[0]
-        ) / self.trainer.estimated_stepping_batches
+        ) / steps
 
     def configure_optimizers(
         self,
@@ -565,10 +566,11 @@ class IJEPA(JEPA_base, pl.LightningModule):
         optimizer: Callable = torch.optim.AdamW(
             self.parameters(), lr=self.lr, weight_decay=self.weight_decay
         )
+        steps = max(1, getattr(self.trainer, "estimated_stepping_batches", 1))
         scheduler: Callable = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
             max_lr=self.lr,
-            total_steps=self.trainer.estimated_stepping_batches,
+            total_steps=steps,
         )
 
         return {

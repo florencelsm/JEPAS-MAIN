@@ -52,6 +52,11 @@ class WindowsAudioDataModule(pl.LightningDataModule):
             use_spec=self.use_spec,
             shuffle=False,
         )
+        if len(self.train_dataset) == 0:
+            raise RuntimeError(
+                f"No training samples found in {self.dataset_root}. "
+                "Check DATASET_PATH or preprocessing steps."
+            )
 
     def _loader(self, dataset):
         return DataLoader(
