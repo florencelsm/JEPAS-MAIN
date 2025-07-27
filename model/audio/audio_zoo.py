@@ -1,11 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Audio model zoo
-~~~~~~~~~~~~~~~
-* 兼容 torchaudio >= 2.1 移除 AST_BASE 的变动
-* 支持 Hugging Face AST/Wav2Vec2 回退
-* 找不到预训练权重时仅 warnings.warn，不抛异常
-"""
 from __future__ import annotations
 
 import warnings
@@ -14,7 +7,7 @@ from typing import Callable, Dict, Optional
 import torch
 import torchaudio
 
-# ↓ 若想启用 Hugging Face 回退，需 pip install transformers>=4.45
+# 若想启用 Hugging Face 回退，需 pip install transformers>=4.45
 try:
     from transformers import ASTModel, Wav2Vec2Model
     _HF_READY = True
@@ -25,9 +18,7 @@ from model.vision.vit import VisionTransformer
 from model.patch_embed import PatchEmbed1D
 
 
-# -----------------------------------------------------------------------------#
 # 基础模型构建
-# -----------------------------------------------------------------------------#
 def create_spec_vit(embed_dim: int = 768) -> VisionTransformer:
     """默认为 12 层 / 768 维的 ViT，用于 96-patch 频谱输入"""
     return VisionTransformer(
@@ -52,9 +43,8 @@ def create_wave_1dt(embed_dim: int = 768) -> VisionTransformer:
     return vit
 
 
-# -----------------------------------------------------------------------------#
+
 # Helper：加载 torchaudio / Hugging Face 预训练权重
-# -----------------------------------------------------------------------------#
 def _ta_try_ast() -> Optional[dict]:
     """尝试在 torchaudio.pipelines 中找到任一 AST bundle 并返回 state_dict"""
     for name in ("AST_BASE", "AST", "AUDIO_SPECTROGRAM_TRANSFORMER_BASE"):
@@ -107,9 +97,7 @@ def _hf_try_wav2vec() -> Optional[dict]:
         return None
 
 
-# -----------------------------------------------------------------------------#
 # 预训练模型构建
-# -----------------------------------------------------------------------------#
 def create_spec_vit_pretrained(embed_dim: int = 768,
                                device: torch.device | str | None = None
                                ) -> VisionTransformer:
@@ -161,9 +149,7 @@ def create_wave_1dt_pretrained(embed_dim: int = 768,
     return model.to(device)
 
 
-# -----------------------------------------------------------------------------#
 # 注册到工厂字典
-# -----------------------------------------------------------------------------#
 audio_model_builders: Dict[str, Callable[[], VisionTransformer]] = {
     "spec_vit": create_spec_vit,
     "wave_1dt": create_wave_1dt,

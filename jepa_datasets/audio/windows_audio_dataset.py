@@ -13,7 +13,7 @@ class WindowsAudioImageDataset(Dataset):
     """
     Load paired image–audio windows for Audio-Image JEPA training.
     Parameters
-    ----------
+    
     root : str or Path
         Dataset root that contains ``processed/`` and ``metadata/``.
     stage : {"train", "val", "test"}
