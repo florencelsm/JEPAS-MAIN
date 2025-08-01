@@ -35,6 +35,18 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+import torchaudio
+
+def safe_load(path, sr=16000):
+    try:
+        x, orig_sr = torchaudio.load(path)   # 支持 AAC
+        if orig_sr != sr:
+            x = torchaudio.functional.resample(x, orig_sr, sr)
+        return x.squeeze(0).numpy()
+    except Exception as e:
+        print(f"[WARN] torchaudio failed to read {path}: {e}")
+        return None
+
 
 # --------------------------------------------------------------------------- #
 # Argument parsing                                                            #
@@ -78,7 +90,11 @@ def process_one_audio(
 
     # --- Load audio ---
     try:
-        y, _ = librosa.load(audio_path, sr=sr, mono=True)
+        # y, _ = librosa.load(audio_path, sr=sr, mono=True)
+        y = safe_load(audio_path, sr)
+        if y is None:
+            return  # 或者记录错误再 continue
+
     except Exception as exc:
         print(f"[!] Failed to read {audio_path.name}: {exc}")
         return

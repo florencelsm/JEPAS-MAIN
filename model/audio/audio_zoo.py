@@ -7,7 +7,7 @@ from typing import Callable, Dict, Optional
 import torch
 import torchaudio
 
-# 若想启用 Hugging Face 回退，需 pip install transformers>=4.45
+# To enable Hugging Face fallback, please pip install transformers>=4.45
 try:
     from transformers import ASTModel, Wav2Vec2Model
     _HF_READY = True
@@ -18,9 +18,9 @@ from model.vision.vit import VisionTransformer
 from model.patch_embed import PatchEmbed1D
 
 
-# 基础模型构建
+# Base model construction
 def create_spec_vit(embed_dim: int = 768) -> VisionTransformer:
-    """默认为 12 层 / 768 维的 ViT，用于 96-patch 频谱输入"""
+    """Default is a 12-layer / 768-dim ViT for 96-patch spectrogram input"""
     return VisionTransformer(
         img_size=224,
         patch_size=16,
@@ -35,7 +35,7 @@ def create_spec_vit(embed_dim: int = 768) -> VisionTransformer:
 
 
 def create_wave_1dt(embed_dim: int = 768) -> VisionTransformer:
-    """将 ViT 的 PatchEmbed 替换为 1D patch-embedding，以处理波形序列"""
+    """Replace ViT's PatchEmbed with 1D patch-embedding to process waveform sequences"""
     vit = VisionTransformer(img_size=224, patch_size=16)
     vit.patch_embed = PatchEmbed1D()
     vit.num_patches = vit.patch_embed.patch_shape[0]
@@ -44,9 +44,9 @@ def create_wave_1dt(embed_dim: int = 768) -> VisionTransformer:
 
 
 
-# Helper：加载 torchaudio / Hugging Face 预训练权重
+# Helper: Load torchaudio / Hugging Face pretrained weights
 def _ta_try_ast() -> Optional[dict]:
-    """尝试在 torchaudio.pipelines 中找到任一 AST bundle 并返回 state_dict"""
+    """Try to find any AST bundle in torchaudio.pipelines and return state_dict"""
     for name in ("AST_BASE", "AST", "AUDIO_SPECTROGRAM_TRANSFORMER_BASE"):
         bundle = getattr(torchaudio.pipelines, name, None)
         if bundle is None:
@@ -54,7 +54,7 @@ def _ta_try_ast() -> Optional[dict]:
         try:
             return bundle.get_model().state_dict()
         except Exception as e:
-            warnings.warn(f"[audio_zoo] torchaudio bundle {name} 加载失败：{e}")
+            warnings.warn(f"[audio_zoo] torchaudio bundle {name} failed to load: {e}")
     return None
 
 
@@ -68,7 +68,7 @@ def _hf_try_ast() -> Optional[dict]:
         )
         return model.state_dict()
     except Exception as e:
-        warnings.warn(f"[audio_zoo] Hugging Face AST 下载失败：{e}")
+        warnings.warn(f"[audio_zoo] Hugging Face AST download failed: {e}")
         return None
 
 
@@ -79,7 +79,7 @@ def _ta_try_wav2vec() -> Optional[dict]:
     try:
         return bundle.get_model().state_dict()
     except Exception as e:
-        warnings.warn(f"[audio_zoo] torchaudio WAV2VEC2_BASE 加载失败：{e}")
+        warnings.warn(f"[audio_zoo] torchaudio WAV2VEC2_BASE failed to load: {e}")
         return None
 
 
@@ -93,15 +93,15 @@ def _hf_try_wav2vec() -> Optional[dict]:
         )
         return model.state_dict()
     except Exception as e:
-        warnings.warn(f"[audio_zoo] Hugging Face Wav2Vec2 下载失败：{e}")
+        warnings.warn(f"[audio_zoo] Hugging Face Wav2Vec2 download failed: {e}")
         return None
 
 
-# 预训练模型构建
+# Pretrained model construction
 def create_spec_vit_pretrained(embed_dim: int = 768,
                                device: torch.device | str | None = None
                                ) -> VisionTransformer:
-    """频谱-ViT，尽可能加载 AST 预训练权重；失败则返回随机初始化模型"""
+    """Spectrogram-ViT, try to load AST pretrained weights if possible; return randomly initialized model if failed"""
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -110,15 +110,15 @@ def create_spec_vit_pretrained(embed_dim: int = 768,
     state_dict = _ta_try_ast() or _hf_try_ast()
     if state_dict is None:
         warnings.warn(
-            "[audio_zoo] 未找到任何 AST 预训练权重，Spec-ViT 保持随机初始化"
+            "[audio_zoo] No AST pretrained weights found, Spec-ViT remains randomly initialized"
         )
         return model.to(device)
 
     missing, unexpected = model.load_state_dict(state_dict, strict=False)
     if missing:
-        warnings.warn(f"[audio_zoo] AST 权重缺失 {len(missing)} 个参数")
+        warnings.warn(f"[audio_zoo] AST weights missing {len(missing)} parameters")
     if unexpected:
-        warnings.warn(f"[audio_zoo] AST 权重多余 {len(unexpected)} 个参数已忽略")
+        warnings.warn(f"[audio_zoo] AST weights have {len(unexpected)} unexpected parameters ignored")
 
     return model.to(device)
 
@@ -126,7 +126,7 @@ def create_spec_vit_pretrained(embed_dim: int = 768,
 def create_wave_1dt_pretrained(embed_dim: int = 768,
                                device: torch.device | str | None = None
                                ) -> VisionTransformer:
-    """Wave-1DT，加载 Wav2Vec2 预训练"""
+    """Wave-1DT, load Wav2Vec2 pretrained weights"""
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -135,21 +135,21 @@ def create_wave_1dt_pretrained(embed_dim: int = 768,
     state_dict = _ta_try_wav2vec() or _hf_try_wav2vec()
     if state_dict is None:
         warnings.warn(
-            "[audio_zoo] 未找到任何 Wav2Vec2 预训练权重，Wave-1DT 保持随机初始化"
+            "[audio_zoo] No Wav2Vec2 pretrained weights found, Wave-1DT remains randomly initialized"
         )
         return model.to(device)
 
     state_dict = {k: v for k, v in state_dict.items() if k in model.state_dict()}
     missing, unexpected = model.load_state_dict(state_dict, strict=False)
     if missing:
-        warnings.warn(f"[audio_zoo] Wav2Vec2 权重缺失 {len(missing)} 个参数")
+        warnings.warn(f"[audio_zoo] Wav2Vec2 weights missing {len(missing)} parameters")
     if unexpected:
-        warnings.warn(f"[audio_zoo] Wav2Vec2 权重多余 {len(unexpected)} 个参数已忽略")
+        warnings.warn(f"[audio_zoo] Wav2Vec2 weights have {len(unexpected)} unexpected parameters ignored")
 
     return model.to(device)
 
 
-# 注册到工厂字典
+# Register to factory dictionary
 audio_model_builders: Dict[str, Callable[[], VisionTransformer]] = {
     "spec_vit": create_spec_vit,
     "wave_1dt": create_wave_1dt,
@@ -157,6 +157,6 @@ audio_model_builders: Dict[str, Callable[[], VisionTransformer]] = {
     "wave_1dt_pretrain": create_wave_1dt_pretrained,
 }
 
-# 向后兼容旧名字
+# Backward compatibility for old names
 spec_vit_base = create_spec_vit
 Wave1DT = create_wave_1dt

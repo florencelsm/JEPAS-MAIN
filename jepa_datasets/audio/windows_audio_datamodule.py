@@ -5,6 +5,8 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
 from .windows_audio_dataset import WindowsAudioImageDataset
+from torch.nn.utils.rnn import pad_sequence
+import torch
 
 
 class WindowsAudioDataModule(pl.LightningDataModule):
@@ -19,6 +21,7 @@ class WindowsAudioDataModule(pl.LightningDataModule):
         *,
         use_spec: bool = True,
         shuffle: bool = True,
+        image_size: int = 224,
     ) -> None:
         super().__init__()
         self.dataset_root = Path(dataset_root)
@@ -29,28 +32,47 @@ class WindowsAudioDataModule(pl.LightningDataModule):
         self.prefetch_factor = prefetch_factor
         self.use_spec = use_spec
         self.shuffle = shuffle
+        self.image_size = image_size
         self.train_dataset: Optional[WindowsAudioImageDataset] = None
         self.val_dataset: Optional[WindowsAudioImageDataset] = None
         self.test_dataset: Optional[WindowsAudioImageDataset] = None
 
+    @staticmethod
+    def collate_fn(batch):
+        """Pads ``neg_pool`` entries to equal length and stacks tensors."""
+        images = torch.stack([b["image"] for b in batch])
+        audios = torch.stack([b["audio"] for b in batch])
+        neg_pools = [b["neg_pool"] for b in batch]
+        neg_pool = pad_sequence(neg_pools, batch_first=True, padding_value=-1)
+        neg_intra = torch.stack([b["neg_intra"] for b in batch])
+        return {
+            "image": images,
+            "audio": audios,
+            "neg_pool": neg_pool,
+            "neg_intra": neg_intra,
+        }
+    
     def setup(self, stage: Optional[str] = None) -> None:
         self.train_dataset = WindowsAudioImageDataset(
             self.dataset_root,
             "train",
             use_spec=self.use_spec,
             shuffle=self.shuffle,
+            image_size=self.image_size,
         )
         self.val_dataset = WindowsAudioImageDataset(
             self.dataset_root,
             "val",
             use_spec=self.use_spec,
             shuffle=False,
+            image_size=self.image_size,
         )
         self.test_dataset = WindowsAudioImageDataset(
             self.dataset_root,
             "test",
             use_spec=self.use_spec,
             shuffle=False,
+            image_size=self.image_size,
         )
         if len(self.train_dataset) == 0:
             raise RuntimeError(
@@ -67,6 +89,7 @@ class WindowsAudioDataModule(pl.LightningDataModule):
             persistent_workers=self.persistent_workers,
             prefetch_factor=self.prefetch_factor,
             shuffle=False,
+            collate_fn=self.collate_fn,
         )
 
     def train_dataloader(self):
@@ -91,4 +114,5 @@ def create_windows_audio_datamodule(cfg: Dict[str, Any]) -> WindowsAudioDataModu
         prefetch_factor=exp_cfg["PREFETCH_FACTOR"],
         use_spec=dataset_cfg.get("USE_SPEC", True),
         shuffle=dataset_cfg.get("SHUFFLE_DATASET", True),
+        image_size=dataset_cfg.get("IMAGE_SIZE", 224),
     )

@@ -427,7 +427,8 @@ class IJEPA(JEPA_base, pl.LightningModule):
         )
 
         loss: torch.Tensor = self.criterion(y_student, y_teacher)
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+
 
         return loss
 
@@ -492,7 +493,7 @@ class IJEPA(JEPA_base, pl.LightningModule):
         )
 
         loss: torch.Tensor = self.criterion(y_student, y_teacher)
-        self.log("val_loss", loss)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
 

@@ -224,7 +224,7 @@
     },
     "audio": {
         "dataset": {
-            "DATASET_PATH": "./vggss_jepa",
+            "DATASET_PATH": "./vggss_jepa_flip",
             "SHUFFLE_DATASET": true
         },
         "experiment": {
@@ -251,7 +251,7 @@
    },
     "audio_image": {
         "dataset": {
-            "DATASET_PATH": "./vggss_jepa",
+            "DATASET_PATH": "./vggss_jepa_flip",
             "USE_SPEC": true,
             "SHUFFLE_DATASET": true
         },

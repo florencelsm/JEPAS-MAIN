@@ -45,7 +45,7 @@ def extract_audio_segment(video_path, start_time_seconds, duration_seconds, outp
         # -vn disables video recording (only audio)
         # -acodec aac ensures AAC audio codec, widely compatible
         subprocess.run(
-            ['ffmpeg', '-i', video_path, '-ss', str(start_time_seconds), '-t', str(duration_seconds), '-vn', '-acodec', 'aac', output_audio_path],
+            ['ffmpeg', '-i', video_path, '-ss', str(start_time_seconds), '-t', str(duration_seconds), '-vn', '-ac', '1', '-ar', '16000', '-sample_fmt', 's16', output_audio_path],
             check=True,
             capture_output=True,
             text=True
@@ -154,7 +154,7 @@ def process_entry(entry, base_output_dir, sanity_check_output_dir, item_index):
     timestamp_seconds = int(timestamp_str)
 
     video_output_path = os.path.join(base_output_dir, "videos", f"{video_id}.mp4")
-    audio_output_path = os.path.join(base_output_dir, "audio", f"{file_name}.aac")
+    audio_output_path = os.path.join(base_output_dir, "audio", f"{file_name}.wav")
     image_output_path = os.path.join(base_output_dir, "images", f"{file_name}.jpg")
 
     # Ensure output directories exist

@@ -5,6 +5,7 @@ import json, yaml
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+import torch.nn.functional as F
 import soundfile as sf
 from postprocess_for_jepa import safe_read_table
 
@@ -22,6 +23,7 @@ class WindowsAudioImageDataset(Dataset):
         *,
         use_spec: bool = True,
         shuffle: bool = True,
+        image_size: int = 224,
     ) -> None:
         super().__init__()
         self.root = Path(root)
@@ -42,6 +44,7 @@ class WindowsAudioImageDataset(Dataset):
             self.df = self.df.sample(frac=1, random_state=0).reset_index(drop=True)
 
         self.use_spec = use_spec
+        self.image_size = image_size
 
     # ----------------------- helpers -------------------------------------
     @staticmethod
@@ -76,6 +79,15 @@ class WindowsAudioImageDataset(Dataset):
         else:
             frame = np.load(self.root / row["img_path"], mmap_mode="r").copy()
         img = self._to_chw(frame).float()                       # (3,H,W)
+        if self.image_size is not None and (
+            img.shape[1] != self.image_size or img.shape[2] != self.image_size
+        ):
+            img = F.interpolate(
+                img.unsqueeze(0),
+                size=(self.image_size, self.image_size),
+                mode="bilinear",
+                align_corners=False,
+            ).squeeze(0)
 
         # -------- load audio --------
         if self.use_spec:

@@ -2,7 +2,7 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from x_transformers import Decoder
+from x_transformers import Encoder
 
 
 class Predictor(nn.Module):
@@ -75,7 +75,7 @@ class Predictor(nn.Module):
     ):
         super().__init__()
         # Initialize the transformer-based decoder
-        self.decoder = Decoder(
+        self.decoder = Encoder(
             dim=embed_dim, depth=depth, heads=num_heads, layer_dropout=layer_dropout
         )
 
