@@ -168,6 +168,9 @@ class JEPA_base(nn.Module):
         """
         B, T, D = last_hidden_state.shape
 
+        if pos_embeddings.shape[0] == 1 and B > 1:
+            pos_embeddings = pos_embeddings.expand(B, -1, -1)
+
         # Ensure CLS token is not masked (typically index 0)
         mask = mask.clone()
         mask[:, 0] = False

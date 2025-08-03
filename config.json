@@ -28,7 +28,7 @@
    },
     "audio_image": {
         "dataset": {
-            "DATASET_PATH": "./vgg_ss_processed_data/images",
+            "DATASET_PATH": "./vgg_ss_processed_data",
             "SHUFFLE_DATASET": true
         },
         "experiment": {

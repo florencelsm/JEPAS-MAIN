@@ -9,6 +9,8 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from PIL import Image
+from tqdm.auto import tqdm
+
 
 from configs.load_config import load_config
 from pretrained.audio_models import (
@@ -70,12 +72,19 @@ def train(audio_mode: str = "spectrogram") -> None:
     if not data_root.is_absolute():
         data_root = (Path(__file__).resolve().parent / data_root).resolve()
 
+    if not ((data_root / "waveforms").is_dir() and (data_root / "images").is_dir()):
+        if data_root.name in {"images", "waveforms"}:
+            data_root = data_root.parent
+
     dataset = AudioImageDataset(data_root)
+    
     if len(dataset) == 0:
         raise RuntimeError(
             f"No paired waveforms and images found in {data_root}. "
-            "Verify DATASET_PATH and that both 'waveforms' and 'images' contain matching files."
+            "Verify DATASET_PATH points to a directory containing matching "
+            "'waveforms' and 'images' subfolders."
         )
+    
     loader = DataLoader(
         dataset,
         batch_size=exp_cfg["BATCH_SIZE"],
@@ -111,17 +120,25 @@ def train(audio_mode: str = "spectrogram") -> None:
 
     global_step = 0
     for epoch in range(exp_cfg["MAX_EPOCHS"]):
-        for waveforms, img_paths in loader:
+        best_loss = float("inf")
+        progress = tqdm(
+            loader, desc=f"Epoch {epoch+1}/{exp_cfg['MAX_EPOCHS']}", leave=False
+        )
+        for waveforms, img_paths in progress:
+            # Convert batched tensors to a list of lists so the feature extractor
+            # treats each waveform independently and pads as needed.
+            wave_list = [w.tolist() for w in waveforms]
+
             audio_inputs = audio_extractor(
-                waveforms, sampling_rate=dataset.sample_rate, return_tensors="pt"
+                wave_list, sampling_rate=dataset.sample_rate, return_tensors="pt"
             ).input_values.to(device)
 
             images: List[Image.Image] = [
                 Image.open(p).convert("RGB") for p in img_paths
             ]
-            image_inputs = vision_proc(images=images, return_tensors="pt").pixel_values.to(
-                device
-            )
+            image_inputs = vision_proc(
+                images=images, return_tensors="pt"
+            ).pixel_values.to(device)
 
             preds, targets = jepa.forward_base(audio=audio_inputs, image=image_inputs)
             loss = criterion(preds, targets)
@@ -132,6 +149,13 @@ def train(audio_mode: str = "spectrogram") -> None:
 
             writer.add_scalar("train/loss", loss.item(), global_step)
             global_step += 1
+
+            if loss.item() < best_loss:
+                best_loss = loss.item()
+            progress.set_postfix(loss=loss.item(), best_loss=best_loss)
+
+        writer.add_scalar("train/best_loss_epoch", best_loss, epoch)
+        print(f"Epoch {epoch+1}: best loss {best_loss:.4f}")
 
         ckpt_path = ckpt_dir / f"jepa_{audio_mode}_epoch{epoch+1}.pt"
         torch.save(jepa.state_dict(), ckpt_path)
