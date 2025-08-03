@@ -1,7 +1,7 @@
 {
     "audio": {
         "dataset": {
-            "DATASET_PATH": "./vgg_ss_processed_data",
+            "DATASET_PATH": "./vgg_ss_processed_data/waveforms",
             "SHUFFLE_DATASET": true
         },
         "experiment": {
@@ -28,7 +28,7 @@
    },
     "audio_image": {
         "dataset": {
-            "DATASET_PATH": "./vgg_ss_processed_data",
+            "DATASET_PATH": "./vgg_ss_processed_data/images",
             "SHUFFLE_DATASET": true
         },
         "experiment": {
