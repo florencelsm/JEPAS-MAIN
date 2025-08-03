@@ -8,9 +8,18 @@ import torch.nn as nn
 import transformers
 from transformers.models.bert.modeling_bert import BertEmbeddings
 
-from model.text import TextEncoder
-from model.vision.base_model import JEPA_base
+from model.base_model import JEPA_base
 from utils.types_utils import Number
+
+from transformers import (
+    ASTFeatureExtractor,
+    ASTModel,
+    AutoImageProcessor,
+    BitImageProcessor,
+    Dinov2Model,
+    Wav2Vec2FeatureExtractor,
+    Wav2Vec2Model,
+)
 
 # pylint: disable=pointless-string-statement
 
@@ -29,6 +38,7 @@ class ImageAudioJEPA(JEPA_base, pl.LightningModule):
         audio_feature_extractor: Union[ASTFeatureExtractor, Wav2Vec2FeatureExtractor],
 
         decoder_depth: int = 6,
+        num_heads: int = 8,
         lr: float = 1e-3,
         weight_decay: float = 0.05,
         target_aspect_ratio: Tuple[float, float] = (0.75, 1.5),
@@ -49,7 +59,7 @@ class ImageAudioJEPA(JEPA_base, pl.LightningModule):
             vision_model=vision_model,
             audio_model=audio_model,
             decoder_depth=decoder_depth,
-            ..., # TODO: Implement
+            num_heads=num_heads,
             **kwargs,
         )
 
