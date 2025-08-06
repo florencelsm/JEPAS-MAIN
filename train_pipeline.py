@@ -110,7 +110,8 @@ def train(audio_mode: str = "spectrogram") -> None:
         mode = "train", #ali
         device=device,
     )
-
+    
+    # ali
     optimizer = torch.optim.AdamW(jepa.parameters(), lr=exp_cfg["LR"], weight_decay=exp_cfg["WEIGHT_DECAY"])
     criterion = torch.nn.MSELoss()
 
