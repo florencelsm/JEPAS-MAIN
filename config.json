@@ -1,7 +1,7 @@
 {
     "audio_image": {
         "dataset": {
-            "DATASET_PATH": "./vgg_ss_processed_data",
+            "DATASET_PATH": "/home/ec2-user/vggss/vgg_ss_processed_data",
             "SHUFFLE_DATASET": true,
             "SAMPLE_RATE": 16000,
             "MIN_WAVEFORM_LEN": 400
@@ -15,12 +15,12 @@
             "NUM_WORKERS": 2,
             "PIN_MEMORY": true,
             "PERSISTENT_WORKERS": true,
-            "PREFETCH_FACTOR": 0, 
+            "PREFETCH_FACTOR": 2, 
             "SEED": 0,
             "MAX_EPOCHS": 1
         },
         "runtime": {
-            "ACCELERATOR": "cpu",
+            "ACCELERATOR": "cuda",
             "DEVICES": 1,
             "PRECISION": "32-true",
             "FLOAT32_MATMUL_PRECISION": "highest"

@@ -26,7 +26,7 @@ class JEPA_base(nn.Module):
         self.embed_dim = vision_model.config.hidden_size
         assert self.embed_dim == audio_model.config.hidden_size
 
-        self.mask_token = nn.Parameter(torch.randn(1, 1, self.embed_dim))
+        self.mask_token = nn.Parameter(torch.randn(1, 1, self.embed_dim)).to(device)
         nn.init.trunc_normal_(self.mask_token, 0.02)
 
         self.post_enc_norm = post_enc_norm
@@ -49,7 +49,7 @@ class JEPA_base(nn.Module):
             num_heads=self.num_heads,
             depth=decoder_depth,
             predictor_embed_dim=predictor_embed_dim,
-        )
+        ).to(device)
         
 
         self.device = torch.device(device)
@@ -175,14 +175,14 @@ class JEPA_base(nn.Module):
         mask[:, 0] = False
 
         # Expand mask token to (B, T, D)
-        mask_token_expanded = mask_token.expand(B, T, D)  # (B, T, D)
+        mask_token_expanded = mask_token.expand(B, T, D).to(self.device)  # (B, T, D)
 
         # Compute context masks
         target_masks: List[torch.Tensor] = []
         target_blocks: List[torch.Tensor] = []
 
         for b in range(B):
-            masked_indices = mask[b]  # (T,)
+            masked_indices = mask[b].to(self.device)  # (T,)
 
             target_masks.append(
                 mask_token_expanded[b][masked_indices]
@@ -328,8 +328,8 @@ class JEPA_base(nn.Module):
 
         ### MAKE PREDICTIONS
         predictions: torch.Tensor = self.predictor(
-            context_encoding=context_encoding,
-            target_masks=target_masks,
+            context_encoding=context_encoding.to(self.device),
+            target_masks=target_masks.to(self.device),
         )  # (B, N_masked, ID)
 
         return (

@@ -1,8 +1,8 @@
+from __future__ import annotations
 import torch
 import numpy as np
 import argparse
 import random
-from __future__ import annotations
 from pathlib import Path
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -22,7 +22,7 @@ def train(audio_mode: str = "spectrogram") -> None:
     track_cfg = cfg["tracking"]
 
     torch.manual_seed(exp_cfg.get("SEED", 0))
-    torch.cuda.seed_all(exp_cfg.get("SEED", 0))
+    torch.cuda.manual_seed_all(exp_cfg.get("SEED", 0))
     random.seed(exp_cfg.get("SEED", 0))
     np.random.seed(exp_cfg.get("SEED", 0))
     torch.set_float32_matmul_precision(runtime_cfg.get("FLOAT32_MATMUL_PRECISION", "medium")) # ali chenged to highest in config.json
@@ -55,8 +55,8 @@ def train(audio_mode: str = "spectrogram") -> None:
                         prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2),) # ali
 
     which = "wav2vec2" if audio_mode.lower() == "waveform" else "ast"
-    audio_model = load_audio_models(device, mode=which)
-    vision_model = load_image_models(device)
+    audio_model = load_audio_models(device=device, mode=which)
+    vision_model = load_image_models(device=device)
 
     jepa = JEPA_base(vision_model=vision_model,
                      audio_model=audio_model,
@@ -77,8 +77,9 @@ def train(audio_mode: str = "spectrogram") -> None:
     for epoch in range(exp_cfg["MAX_EPOCHS"]):
         best_loss = float("inf")
         progress = tqdm(loader, desc=f"Epoch {epoch+1}/{exp_cfg['MAX_EPOCHS']}", leave=False)
-        for audio, images in progress:
-            audio, images = audio.to(device), images.to(device)
+        for data in progress:
+        
+            audio, images = data['waveform'].to(device), data['image'].to(device)
 
             preds, targets = jepa.forward_base(audio=audio, image=images)
             loss = criterion(preds, targets)

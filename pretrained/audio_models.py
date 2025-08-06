@@ -29,7 +29,7 @@ def load_waveform(path: Path, sample_rate: int = 16000, min_waveform_len: int = 
         resampled to ``sample_rate``.
     """
 
-    waveform, sr = torchaudio.load(path)
+    waveform, sr = torchaudio.load(str(path))
     # Convert to mono by averaging channels when needed
     if waveform.size(0) > 1:
         waveform = waveform.mean(dim=0, keepdim=True)
@@ -38,5 +38,5 @@ def load_waveform(path: Path, sample_rate: int = 16000, min_waveform_len: int = 
         waveform = torchaudio.functional.resample(waveform, sr, sample_rate)
 
     waveform = waveform.squeeze(0)
-    waveform = pad_waveform(waveform, min_len=min_waveform_len)
+    waveform = pad_waveform(waveform, min_waveform_len=min_waveform_len)
     return waveform

@@ -24,8 +24,8 @@ class AudioImageDataset(Dataset):
             if (self.image_dir / f"{p.stem}.jpg").exists():
                 self.items.append(p.stem)
                 wf = load_waveform(p, sample_rate=self.sample_rate)
-                if wf.numel() > self.max_len:
-                    self.max_len = int(wf.numel())
+                if wf.numel() > self.min_waveform_len:
+                    self.min_waveform_len = int(wf.numel())
 
     def __len__(self) -> int: 
         return len(self.items)
@@ -44,6 +44,6 @@ class AudioImageDataset(Dataset):
         img_path = self.image_dir / f"{stem}.jpg"
         image = self.img_processor(Image.open(img_path), return_tensors="pt").pixel_values
         #bounding_box = bouding_box (load them properly)
-        return {'waveform': waveform,
-                'image':image,}
+        return {'waveform': waveform.squeeze(0),
+                'image':image.squeeze(0),}
                 # 'bounding_box', bounding_box}
