@@ -2,7 +2,9 @@
     "audio_image": {
         "dataset": {
             "DATASET_PATH": "./vgg_ss_processed_data",
-            "SHUFFLE_DATASET": true
+            "SHUFFLE_DATASET": true,
+            "SAMPLE_RATE": 16000,
+            "MIN_WAVEFORM_LEN": 400
         },
         "experiment": {
             "STUDENT_MODEL": "jepa_base",

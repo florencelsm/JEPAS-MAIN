@@ -1,30 +1,23 @@
 from __future__ import annotations
-
 from typing import Any, List, Optional, Tuple, Union
-
 import torch
 import torch.nn as nn
 from transformers import ASTModel, Wav2Vec2Model, Dinov2Model
-
 from .predictor import Predictor
 
-
 class JEPA_base(nn.Module):
-
-    def __init__(
-        self,
-        vision_model: Dinov2Model,
-        audio_model: Union[ASTModel, Wav2Vec2Model],
-        decoder_depth: int,
-        num_heads: int,
-        predictor_embed_dim: Optional[int] = None,
-        post_enc_norm: bool = False,
-        mode: str = "train",
-        context_ratio_range: Tuple[float, float] = (0.85, 0.95),
-        target_mask_range: Tuple[float, float] = (0.15, 0.25),
-        device: str = "cpu",
-        **_: Any,
-    ):
+    def __init__(self,
+                 vision_model: Dinov2Model,
+                 audio_model: Union[ASTModel, Wav2Vec2Model],
+                 decoder_depth: int,
+                 num_heads: int,
+                 predictor_embed_dim: Optional[int] = None,
+                 post_enc_norm: bool = False,
+                 mode: str = "train",
+                 context_ratio_range: Tuple[float, float] = (0.85, 0.95),
+                 target_mask_range: Tuple[float, float] = (0.15, 0.25),
+                 device: str = "cpu",
+                 **_: Any,):
         super().__init__()
         self.num_heads = num_heads
         self.mode = mode.lower()
