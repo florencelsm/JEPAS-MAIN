@@ -64,7 +64,7 @@ def train(audio_mode: str = "spectrogram") -> None:
     torch.manual_seed(exp_cfg.get("SEED", 0))
     torch.set_float32_matmul_precision(
         runtime_cfg.get("FLOAT32_MATMUL_PRECISION", "medium")
-    )
+    ) # ali chenged to highest in config.json
 
     device = runtime_cfg.get("ACCELERATOR", "cpu")
 
@@ -92,7 +92,7 @@ def train(audio_mode: str = "spectrogram") -> None:
         num_workers=exp_cfg.get("NUM_WORKERS", 0),
         pin_memory=exp_cfg.get("PIN_MEMORY", False),
         persistent_workers=exp_cfg.get("PERSISTENT_WORKERS", False),
-        prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2),
+        # prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2), # ali
     )
 
     which = "wav2vec2" if audio_mode.lower() == "waveform" else "ast"
@@ -107,10 +107,11 @@ def train(audio_mode: str = "spectrogram") -> None:
         audio_model=audio_model,
         decoder_depth=6,
         num_heads=8,
+        mode = "train", #ali
         device=device,
     )
 
-    optimizer = torch.optim.Adam(jepa.parameters(), lr=exp_cfg["LR"])
+    optimizer = torch.optim.AdamW(jepa.parameters(), lr=exp_cfg["LR"], weight_decay=exp_cfg["WEIGHT_DECAY"])
     criterion = torch.nn.MSELoss()
 
 
@@ -134,7 +135,7 @@ def train(audio_mode: str = "spectrogram") -> None:
             ).input_values.to(device)
 
             images: List[Image.Image] = [
-                Image.open(p).convert("RGB") for p in img_paths
+                Image.open(p) for p in img_paths #ali
             ]
             image_inputs = vision_proc(
                 images=images, return_tensors="pt"

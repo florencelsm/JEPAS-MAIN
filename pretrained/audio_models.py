@@ -31,7 +31,8 @@ def load_audio_models(
         ast_model = ASTModel.from_pretrained(
             "MIT/ast-finetuned-audioset-10-10-0.4593"
         ).to(device)
-        ast_model.eval()
+        
+        # ast_model.eval()  # ali
         ast_extractor = AutoFeatureExtractor.from_pretrained(
             "MIT/ast-finetuned-audioset-10-10-0.4593"
         )
@@ -41,7 +42,7 @@ def load_audio_models(
         wav_model = Wav2Vec2Model.from_pretrained(
             "facebook/wav2vec2-base-960h", trust_remote_code=False
         ).to(device)
-        wav_model.eval()
+        # wav_model.eval() # ali
         wav_extractor = AutoFeatureExtractor.from_pretrained(
             "facebook/wav2vec2-base-960h"
         )

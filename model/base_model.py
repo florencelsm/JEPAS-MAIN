@@ -41,6 +41,12 @@ class JEPA_base(nn.Module):
             nn.LayerNorm(self.embed_dim) if self.post_enc_norm else nn.Identity()
         )
 
+        # ali
+        # student
+        self.audio_encoder = audio_model
+        if self.mode == "test":
+            self.audio_encoder.eval()
+        # teacher
         self.image_encoder = vision_model
         for p in self.image_encoder.parameters():
             p.requires_grad = False
@@ -51,8 +57,8 @@ class JEPA_base(nn.Module):
             depth=decoder_depth,
             predictor_embed_dim=predictor_embed_dim,
         )
+        
 
-        self.audio_encoder = audio_model
         self.device = torch.device(device)
        
     def sample_num_blocks(
