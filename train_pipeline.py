@@ -11,7 +11,7 @@ from configs.load_config import load_config
 from pretrained.audio_models import load_audio_models             
 from pretrained.image_model import load_image_models
 from model.base_model import JEPA_base
-from dataset.dataset import AudioImageDataset
+from dataset.VGGSS_dataset import VGGSS_Dataset
 
 def train(audio_mode: str = "spectrogram") -> None:
     config = load_config()
@@ -37,9 +37,8 @@ def train(audio_mode: str = "spectrogram") -> None:
         if data_root.name in {"images", "waveforms"}:
             data_root = data_root.parent
 
-    dataset = AudioImageDataset(data_root,
-                                sample_rate=data_cfg["SAMPLE_RATE"],
-                                min_waveform_len=data_cfg["MIN_WAVEFORM_LEN"])
+    dataset = VGGSS_Dataset(audio_mode=audio_mode.lower(),
+                            config=data_cfg)
     
     if len(dataset) == 0:
         raise RuntimeError(f"No paired waveforms and images found in {data_root}. "
@@ -53,9 +52,8 @@ def train(audio_mode: str = "spectrogram") -> None:
                         pin_memory=exp_cfg.get("PIN_MEMORY", False),
                         persistent_workers=exp_cfg.get("PERSISTENT_WORKERS", False),
                         prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2),) # ali
-
-    which = "wav2vec2" if audio_mode.lower() == "waveform" else "ast"
-    audio_model = load_audio_models(device=device, mode=which)
+    
+    audio_model = load_audio_models(audio_mode=audio_mode, device=device)
     vision_model = load_image_models(device=device)
 
     jepa = JEPA_base(vision_model=vision_model,

@@ -1,33 +1,32 @@
-{
-    "audio_image": {
-        "dataset": {
-            "DATASET_PATH": "/home/ec2-user/vggss/vgg_ss_processed_data",
-            "SHUFFLE_DATASET": true,
-            "SAMPLE_RATE": 16000,
-            "MIN_WAVEFORM_LEN": 400
-        },
-        "experiment": {
-            "STUDENT_MODEL": "jepa_base",
-            "TEACHER_SIZE": "dinov2-base",
-            "LR": 1e-4,
-            "WEIGHT_DECAY": 0.05,
-            "BATCH_SIZE": 4,
-            "NUM_WORKERS": 2,
-            "PIN_MEMORY": true,
-            "PERSISTENT_WORKERS": true,
-            "PREFETCH_FACTOR": 2, 
-            "SEED": 0,
-            "MAX_EPOCHS": 1
-        },
-        "runtime": {
-            "ACCELERATOR": "cuda",
-            "DEVICES": 1,
-            "PRECISION": "32-true",
-            "FLOAT32_MATMUL_PRECISION": "highest"
-        },
-        "tracking": {
-            "LOG_DIR": "lightning_logs",
-            "CHECKPOINT_DIR": "./checkpoints"
-        }
+{"audio_image": 
+    {"dataset": {"DATASET_PATH": "/home/ec2-user/vggss/vggss_dataset/vggss_dataset.json",
+                 "MODE": "train",
+                 "SHUFFLE_DATASET": true,
+                 "DO_CENTER_CROP": false,
+                 "RESIZE": 320,
+                 "CROP_AT_BBOX": true,
+                 "RATIO_BBOX": 0.7,
+                 "MIN_CROP_RATIO": 0.5,
+                 "MAX_CROP_RATIO": 0.85,
+                 "DYNAMIC_MARGIN": 3.0,
+                 "SAMPLE_RATE": 16000,
+                 "MIN_WAVEFORM_LEN": 400},
+    "experiment": {"STUDENT_MODEL": "jepa_base",
+                   "TEACHER_SIZE": "dinov2-base",
+                   "LR": 1e-4,
+                   "WEIGHT_DECAY": 0.05,
+                   "BATCH_SIZE": 4,
+                   "NUM_WORKERS": 2,
+                   "PIN_MEMORY": true,
+                   "PERSISTENT_WORKERS": true,
+                   "PREFETCH_FACTOR": 2, 
+                   "SEED": 0,
+                   "MAX_EPOCHS": 1},
+    "runtime": {"ACCELERATOR": "cuda",
+                "DEVICES": 1,
+                "PRECISION": "32-true",
+                "FLOAT32_MATMUL_PRECISION": "highest"},
+    "tracking": {"LOG_DIR": "lightning_logs",
+                 "CHECKPOINT_DIR": "./checkpoints"}
     }
 }

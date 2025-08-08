@@ -1,4 +1,3 @@
-
 1 - Initially we thought generating multiple target blocks from within the Bounding Box was a good idea. But it appears
    that the Bounding Boxes are sometimes NOT at the correct poistion, or they are too small to generate target patches.
 
