@@ -49,8 +49,8 @@ class VGGSS_Dataset(Dataset):
             ratio_bbox = get_bbox_ratio_img(bbox, image.shape[-2:])
             if ratio_bbox < self.config["RATIO_BBOX"]:
                 image = crop_image(image,
-                                bbox,
-                                self.config["MIN_CROP_RATIO"],
-                                self.config["MAX_CROP_RATIO"],
-                                self.config["DYNAMIC_MARGIN"],)
+                                   bbox,
+                                   self.config["MIN_CROP_RATIO"],
+                                   self.config["MAX_CROP_RATIO"],
+                                   self.config["DYNAMIC_MARGIN"],)
         return {"waveform": waveform, "image": image}
