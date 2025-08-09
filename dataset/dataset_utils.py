@@ -1,4 +1,7 @@
 import librosa
+import math
+import torch
+import torch.nn.functional as F
 
 def load_audio(waveform_path, sample_rate):
     waveform, sample_rate = librosa.load(waveform_path, sr=sample_rate)
@@ -33,60 +36,69 @@ def get_bbox_ratio_img(bbox, image_shape):
 
 def crop_image(image,
                bbox,
-               min_crop_ratio = 0.5,
-               max_crop_ratio = 0.85,
-               dynamic_margin = 1.5):
-        
+               min_crop_ratio=0.5,
+               max_crop_ratio=0.85,
+               min_abs_size=32,
+               dynamic_margin=1.5):
+
     H, W = image.shape[-2:]
     x0, y0, x1, y1 = bbox
- 
-    bbox_cx = (x0 + x1) // 2 
-    bbox_cy = (y0 + y1) // 2 
-    bbox_w = x1 - x0 
-    bbox_h = y1 - y0 
- 
-    # Expand bbox with margin 
-    crop_w = int(bbox_w * dynamic_margin) 
-    crop_h = int(bbox_h * dynamic_margin) 
- 
-    # Enforce a minimum crop size based on the image 
-    min_crop_w = int(W * min_crop_ratio) 
-    min_crop_h = int(H * min_crop_ratio) 
- 
-    crop_w = max(crop_w, min_crop_w) 
-    crop_h = max(crop_h, min_crop_h) 
-    
-    # Enforce maximum crop size
+
+    if x1 <= x0 or y1 <= y0:
+        return image
+
+    bbox_cx = (x0 + x1) // 2
+    bbox_cy = (y0 + y1) // 2
+    bbox_w = x1 - x0
+    bbox_h = y1 - y0
+
+    crop_w = int(bbox_w * dynamic_margin)
+    crop_h = int(bbox_h * dynamic_margin)
+
+    min_crop_w = int(W * min_crop_ratio)
+    min_crop_h = int(H * min_crop_ratio)
+
+    crop_w = max(crop_w, min_crop_w, min_abs_size)
+    crop_h = max(crop_h, min_crop_h, min_abs_size)
+
     max_crop_w = int(W * max_crop_ratio)
     max_crop_h = int(H * max_crop_ratio)
-    
     crop_w = min(crop_w, max_crop_w)
     crop_h = min(crop_h, max_crop_h)
- 
-    # Maintain aspect ratio 
-    aspect = W / H 
-    if crop_w / crop_h > aspect: 
-        crop_h = int(crop_w / aspect) 
-    else: 
-        crop_w = int(crop_h * aspect) 
- 
-    # Compute crop boundaries 
-    x_start = max(0, bbox_cx - crop_w // 2) 
-    x_end = min(W, bbox_cx + crop_w // 2) 
-    y_start = max(0, bbox_cy - crop_h // 2) 
-    y_end = min(H, bbox_cy + crop_h // 2) 
- 
-    # Pad if crop is near edge 
-    if x_end - x_start < crop_w: 
-        pad = crop_w - (x_end - x_start) 
-        x_start = max(0, x_start - pad // 2) 
-        x_end = min(W, x_end + pad // 2) 
- 
-    if y_end - y_start < crop_h: 
-        pad = crop_h - (y_end - y_start) 
-        y_start = max(0, y_start - pad // 2) 
-        y_end = min(H, y_end + pad // 2) 
+
+    aspect = W / H
+    if crop_w / crop_h > aspect:
+        crop_h = max(int(crop_w / aspect), min_abs_size)
+    else:
+        crop_w = max(int(crop_h * aspect), min_abs_size)
+
+    x_start = bbox_cx - crop_w // 2
+    y_start = bbox_cy - crop_h // 2
+
+    x_end = x_start + crop_w
+    y_end = y_start + crop_h
+
+    x_shift = max(0, 0 - x_start)
+    y_shift = max(0, 0 - y_start)
     
+    if x_end > W:
+        x_shift = min(x_shift, x_end - W)
+    if y_end > H:
+        y_shift = min(y_shift, y_end - H)
+
+    x_start += x_shift
+    x_end += x_shift
+    y_start += y_shift
+    y_end += y_shift
+
+    x_start = max(0, x_start)
+    y_start = max(0, y_start)
+    x_end = min(W, x_end)
+    y_end = min(H, y_end)
+
+    if x_end <= x_start or y_end <= y_start:
+        return image
+
     return image[:, y_start:y_end, x_start:x_end]
 
 def resize_to_divisible(image, divisor=16, min_size=16):

@@ -8,6 +8,7 @@
                  "RATIO_BBOX": 0.7,
                  "MIN_CROP_RATIO": 0.5,
                  "MAX_CROP_RATIO": 0.85,
+                 "MIN_ABS_SIZE": 144, 
                  "DYNAMIC_MARGIN": 3.0,
                  "SAMPLE_RATE": 16000,
                  "MIN_WAVEFORM_LEN": 400},
