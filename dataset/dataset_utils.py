@@ -89,7 +89,7 @@ def crop_image(image,
     
     return image[:, y_start:y_end, x_start:x_end]
 
-def resize_to_divisible(image, divisor=16, min_size=14):
+def resize_to_divisible(image, divisor=16, min_size=16):
     H, W = image.shape[-2:]
     new_H = max(min_size, math.ceil(H / divisor) * divisor)
     new_W = max(min_size, math.ceil(W / divisor) * divisor)

@@ -66,7 +66,7 @@ def train(audio_mode: str = "spectrogram") -> None:
     
     # ali
     optimizer = torch.optim.AdamW(jepa.parameters(), lr=exp_cfg["LR"], weight_decay=exp_cfg["WEIGHT_DECAY"])
-    criterion = torch.nn.MSELoss(reduction='none')
+    criterion = torch.nn.MSELoss()
 
     writer = SummaryWriter(track_cfg["LOG_DIR"])
     ckpt_dir = Path(track_cfg["CHECKPOINT_DIR"])

@@ -43,22 +43,24 @@ class VGGSS_Dataset(Dataset):
                                         sampling_rate=sample_rate, 
                                         return_tensors="pt").input_values.squeeze(0)
         image = self.img_processor(Image.open(img_path), return_tensors="pt").pixel_values.squeeze(0)
+        if image.shape[-2] <=14 or image.shape[-1] <= 14:
+            return None
         if self.config["CROP_AT_BBOX"] and self.mode == 'train':
-            if image.shape[-2] >= 14 and image.shape[-1] >= 14:
-                bbox = unnormalize_bbox(bbox, original_size)
-                bbox = scale_bbox(bbox, original_size, image.shape[-2:])
-                ratio_bbox = get_bbox_ratio_img(bbox, image.shape[-2:])
-                if ratio_bbox < self.config["RATIO_BBOX"]:
-                    image = crop_image(image,
-                                    bbox,
-                                    self.config["MIN_CROP_RATIO"],
-                                    self.config["MAX_CROP_RATIO"],
-                                    self.config["DYNAMIC_MARGIN"],)
-        image = resize_to_divisible(image, divisor=16, min_size=14)
+            bbox = unnormalize_bbox(bbox, original_size)
+            bbox = scale_bbox(bbox, original_size, image.shape[-2:])
+            ratio_bbox = get_bbox_ratio_img(bbox, image.shape[-2:])
+            if ratio_bbox < self.config["RATIO_BBOX"]:
+                image = crop_image(image,
+                                bbox,
+                                self.config["MIN_CROP_RATIO"],
+                                self.config["MAX_CROP_RATIO"],
+                                self.config["DYNAMIC_MARGIN"],)
+        image = resize_to_divisible(image, divisor=16, min_size=256)
         return {"waveform": waveform, "image": image}
     
     @staticmethod
     def collate_list(batch):
+        batch = [item for item in batch if item is not None]
         data = {}
         for k in batch[0].keys():
             data[k] = [item[k] for item in batch]
