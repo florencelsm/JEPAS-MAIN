@@ -42,9 +42,10 @@ class VGGSS_Dataset(Dataset):
         waveform = self.audio_processor(waveform,
                                         sampling_rate=sample_rate, 
                                         return_tensors="pt").input_values.squeeze(0)
-        image = self.img_processor(Image.open(img_path), return_tensors="pt").pixel_values.squeeze(0)
-        if image.shape[-2] <=14 or image.shape[-1] <= 14:
+        image = Image.open(img_path)
+        if image.size[0] <=14 or image.size[0] <= 14:
             return None
+        image = self.img_processor(image, return_tensors="pt").pixel_values.squeeze(0)
         if self.config["CROP_AT_BBOX"] and self.mode == 'train':
             bbox = unnormalize_bbox(bbox, original_size)
             bbox = scale_bbox(bbox, original_size, image.shape[-2:])
