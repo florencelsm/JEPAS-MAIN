@@ -51,7 +51,8 @@ def train(audio_mode: str = "spectrogram") -> None:
                         num_workers=exp_cfg.get("NUM_WORKERS", 0),
                         pin_memory=exp_cfg.get("PIN_MEMORY", False),
                         persistent_workers=exp_cfg.get("PERSISTENT_WORKERS", False),
-                        prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2),) # ali
+                        prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2),
+                        collate_fn=dataset.collate_list) # ali
     
     audio_model = load_audio_models(audio_mode=audio_mode, device=device)
     vision_model = load_image_models(device=device)
@@ -65,7 +66,7 @@ def train(audio_mode: str = "spectrogram") -> None:
     
     # ali
     optimizer = torch.optim.AdamW(jepa.parameters(), lr=exp_cfg["LR"], weight_decay=exp_cfg["WEIGHT_DECAY"])
-    criterion = torch.nn.MSELoss()
+    criterion = torch.nn.MSELoss(reduction='none')
 
     writer = SummaryWriter(track_cfg["LOG_DIR"])
     ckpt_dir = Path(track_cfg["CHECKPOINT_DIR"])
@@ -76,11 +77,14 @@ def train(audio_mode: str = "spectrogram") -> None:
         best_loss = float("inf")
         progress = tqdm(loader, desc=f"Epoch {epoch+1}/{exp_cfg['MAX_EPOCHS']}", leave=False)
         for data in progress:
-        
-            audio, images = data['waveform'].to(device), data['image'].to(device)
-
-            preds, targets = jepa.forward_base(audio=audio, image=images)
-            loss = criterion(preds, targets)
+            all_loss = []
+            for waveform, image in zip(data["waveform"], data["image"]):
+                audio, images = waveform.to(device).unsqueeze(0), image.to(device).unsqueeze(0)
+                print(audio.shape, images.shape)
+                preds, targets = jepa.forward_base(audio=audio, image=images)
+                current_loss = criterion(preds, targets)
+                all_loss.append(current_loss)
+            loss = torch.stack(all_loss).mean()
 
             optimizer.zero_grad()
             loss.backward()

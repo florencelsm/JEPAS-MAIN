@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import json
 from PIL import Image
 from transformers import AutoImageProcessor, AutoFeatureExtractor
-from dataset.dataset_utils import load_audio, unnormalize_bbox, scale_bbox, get_bbox_ratio_img, crop_image
+from dataset_utils import load_audio, unnormalize_bbox, scale_bbox, get_bbox_ratio_img, crop_image
 
 class VGGSS_Dataset(Dataset):
     def __init__(self,
@@ -54,3 +54,9 @@ class VGGSS_Dataset(Dataset):
                                    self.config["MAX_CROP_RATIO"],
                                    self.config["DYNAMIC_MARGIN"],)
         return {"waveform": waveform, "image": image}
+    
+    def collate_list(batch):
+        data = {}
+        for k in batch[0].keys():
+            data[k] = [item[k] for item in batch]
+        return data
