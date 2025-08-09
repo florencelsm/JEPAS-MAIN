@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import json
 from PIL import Image
 from transformers import AutoImageProcessor, AutoFeatureExtractor
-from dataset_utils import load_audio, unnormalize_bbox, scale_bbox, get_bbox_ratio_img, crop_image
+from dataset.dataset_utils import load_audio, unnormalize_bbox, scale_bbox, get_bbox_ratio_img, crop_image
 
 class VGGSS_Dataset(Dataset):
     def __init__(self,

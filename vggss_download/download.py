@@ -9,33 +9,72 @@ SANITY_CHECK_INTERVAL = 10
 FONT_SIZE = 20
 FONT_PATH = "arial.ttf"
 
+# --- Auth / Cookies for YouTube (NEW) ---
+# Path to cookies.txt exported from your browser (recommended on headless servers)
+COOKIES_FILE = os.environ.get("YT_COOKIES")  # e.g., "/home/ec2-user/yt_cookies.txt"
+# Or let yt-dlp read cookies directly from a local browser (only works on machines with that browser/profile)
+# Examples: "chrome:Default", "chrome:Profile 1", "firefox", "edge"
+COOKIES_FROM_BROWSER = os.environ.get("YT_COOKIES_FROM_BROWSER")
+
+def _cookies_cli_args():
+    """Build yt-dlp cookie args from environment (cookies.txt preferred)."""
+    if COOKIES_FILE and os.path.isfile(COOKIES_FILE):
+        return ['--cookies', COOKIES_FILE]
+    if COOKIES_FROM_BROWSER:
+        return ['--cookies-from-browser', COOKIES_FROM_BROWSER]
+    return []
+
+
 def download_video(video_id, output_path):
-    """Downloads a YouTube video using yt-dlp."""
+    """Downloads a YouTube video using yt-dlp with optional cookies/auth."""
     try:
-        # Use --no-warnings to suppress minor warnings
-        # Use --quiet to suppress most output during download
-        # -f bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4 attempts to get best mp4 streams
-        # -o specifies the output file path
-        subprocess.run(
-            ['yt-dlp', '--no-warnings', '--quiet', '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4', '-o', output_path, f'https://www.youtube.com/watch?v={video_id}'],
-            check=True,
-            capture_output=True, # Capture stdout/stderr for error reporting
-            text=True            # Decode output as text
-        )
+        cmd = [
+            'yt-dlp',
+            '--no-warnings', '--quiet',
+            '--ignore-config',          # ignore any user/global ytdlp conf that may break us
+            '--no-playlist',
+            '--merge-output-format', 'mp4',
+            '--geo-bypass',
+            '--retries', '10',
+            '--fragment-retries', '10',
+            '--sleep-requests', '2',
+            '--sleep-interval', '2',
+            '--max-sleep-interval', '5',
+            '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
+            '-o', output_path,
+            f'https://www.youtube.com/watch?v={video_id}',
+        ]
+
+        # <-- NEW: attach cookies if available
+        cmd[1:1] = _cookies_cli_args()
+
+        # Run
+        res = subprocess.run(cmd, check=True, capture_output=True, text=True)
         print(f"Successfully downloaded video {video_id}")
         return True
+
     except subprocess.CalledProcessError as e:
-        if "ERROR: [youtube]" in e.stderr:
-            print(f"Video {video_id} might be unavailable or private. Error: {e.stderr.strip()}")
+        err = (e.stderr or "") + "\n" + (e.stdout or "")
+        if "Sign in to confirm you’re not a bot" in err or "Use --cookies-from-browser or --cookies" in err:
+            print(
+                f"[AUTH NEEDED] Video {video_id} requires authentication.\n"
+                f"Set one of the following and re-run:\n"
+                f"  export YT_COOKIES=/path/to/cookies.txt   # recommended on servers (export via browser extension)\n"
+                f"  # OR (only on machines with a local browser profile):\n"
+                f"  export YT_COOKIES_FROM_BROWSER='chrome:Default'  # or firefox/edge\n"
+            )
+        elif "ERROR: [youtube]" in err:
+            print(f"Video {video_id} might be unavailable or private. Error: {err.strip()}")
         else:
-            print(f"Error downloading video {video_id}: {e.stderr.strip()}")
+            print(f"Error downloading video {video_id}: {err.strip()}")
         return False
     except FileNotFoundError:
-        print("Error: 'yt-dlp' not found. Please install it (e.g., `pip install yt-dlp`) and ensure it's in your system's PATH.")
+        print("Error: 'yt-dlp' not found. Please install it (e.g., `pip install yt-dlp`) and ensure it's in PATH.")
         return False
     except Exception as e:
         print(f"An unexpected error occurred during video download for {video_id}: {e}")
         return False
+
 
 def extract_audio_segment(video_path, start_time_seconds, duration_seconds, output_audio_path):
     """Extracts a 6-second audio segment using ffmpeg."""
@@ -284,7 +323,7 @@ def main(json_file_path, output_directory="vgg_ss_extracted_data"):
     # Use ThreadPoolExecutor for concurrent processing to speed up downloads/extractions.
     # Adjust max_workers based on your system's CPU cores and internet bandwidth.
     # Too many workers can overload your network or CPU.
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=2) as executor:
         # Submit tasks for each entry, passing the current index for sanity check logic
         futures = {executor.submit(process_entry, entry, output_directory, sanity_check_output_dir, i): i
                    for i, entry in enumerate(dataset)}
@@ -321,12 +360,16 @@ if __name__ == "__main__":
     print("3. **Pillow:** Installed. (`pip install Pillow`)")
     print("4. **vggss.json:** Downloaded from https://www.robots.ox.ac.uk/~vgg/research/lvs/data/vggss.json")
     print("   and placed in the same directory as this script, or specify its full path.\n")
+    print("5. To access age/region-restricted videos, provide cookies:")
+    print("   export YT_COOKIES=/path/to/cookies.txt   # headless/server recommended")
+    print("   # or (on desktops with local browser): export YT_COOKIES_FROM_BROWSER='chrome:Default'")
+
 
     # Define the path to your vggss.json file
-    json_dataset_file = "C:/Users/ali97/Desktop/Repos/Florence/JEPAS-MAIN/vggss_download/vggss_dataset.json"
+    json_dataset_file = "/home/ec2-user/vggss/JEPAS-MAIN/vggss_download/vggss.json"
 
     # You can change the output directory name here
-    output_base_directory = "C:/Users/ali97/Desktop/Repos/Florence/JEPAS-MAIN/vggss_data"
+    output_base_directory = "/home/ec2-user/vggss/JEPAS-MAIN/vggss_data"
 
     if not os.path.exists(json_dataset_file):
         print(f"ERROR: The dataset file '{json_dataset_file}' was not found.")

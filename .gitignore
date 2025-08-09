@@ -179,3 +179,4 @@ cython_debug/
 /vggsound/vgg_dataset
 /checkpoints
 /lightning_logs
+/vggss_data

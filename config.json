@@ -1,5 +1,5 @@
 {"audio_image": 
-    {"dataset": {"DATASET_PATH": "/home/ec2-user/vggss/vggss_dataset/vggss_dataset.json",
+    {"dataset": {"DATASET_PATH": "/home/ec2-user/vggss/JEPAS-MAIN/vggss_data/extracted_data.json",
                  "MODE": "train",
                  "SHUFFLE_DATASET": true,
                  "DO_CENTER_CROP": false,
@@ -21,7 +21,7 @@
                    "PERSISTENT_WORKERS": true,
                    "PREFETCH_FACTOR": 2, 
                    "SEED": 0,
-                   "MAX_EPOCHS": 1},
+                   "MAX_EPOCHS": 50},
     "runtime": {"ACCELERATOR": "cuda",
                 "DEVICES": 1,
                 "PRECISION": "32-true",
