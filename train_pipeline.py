@@ -80,7 +80,6 @@ def train(audio_mode: str = "spectrogram") -> None:
             all_loss = []
             for waveform, image in zip(data["waveform"], data["image"]):
                 audio, images = waveform.to(device).unsqueeze(0), image.to(device).unsqueeze(0)
-                print(audio.shape, images.shape)
                 preds, targets = jepa.forward_base(audio=audio, image=images)
                 current_loss = criterion(preds, targets)
                 all_loss.append(current_loss)

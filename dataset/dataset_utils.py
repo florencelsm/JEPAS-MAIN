@@ -88,3 +88,14 @@ def crop_image(image,
         y_end = min(H, y_end + pad // 2) 
     
     return image[:, y_start:y_end, x_start:x_end]
+
+def resize_to_divisible(image, divisor=16, min_size=14):
+    H, W = image.shape[-2:]
+    new_H = max(min_size, math.ceil(H / divisor) * divisor)
+    new_W = max(min_size, math.ceil(W / divisor) * divisor)
+    if new_H != H or new_W != W:
+        image = F.interpolate(image.unsqueeze(0),
+                              size=(new_H, new_W),
+                              mode='bilinear',
+                              align_corners=False).squeeze(0)
+    return image
