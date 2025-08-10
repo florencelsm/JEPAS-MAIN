@@ -79,12 +79,17 @@ def download_video(video_id, output_path):
 def extract_audio_segment(video_path, start_time_seconds, duration_seconds, output_audio_path):
     """Extracts a 6-second audio segment using ffmpeg."""
     try:
-        # -ss specifies the start time
-        # -t specifies the duration
-        # -vn disables video recording (only audio)
-        # -acodec aac ensures AAC audio codec, widely compatible
         subprocess.run(
-            ['ffmpeg', '-i', video_path, '-ss', str(start_time_seconds), '-t', str(duration_seconds), '-vn', '-ac', '1', '-ar', '16000', '-sample_fmt', 's16', output_audio_path],
+            ['ffmpeg', 
+             '-n',
+             '-i', video_path, 
+             '-acodec', 'pcm_s16le',
+             '-ac','1',
+             '-ar','16000',
+             '-ss', str(start_time_seconds), 
+             '-t', str(duration_seconds), 
+             '-vn',
+             output_audio_path],
             check=True,
             capture_output=True,
             text=True

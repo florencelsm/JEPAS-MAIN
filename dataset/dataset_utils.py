@@ -111,3 +111,11 @@ def resize_to_divisible(image, divisor=16, min_size=16):
                               mode='bilinear',
                               align_corners=False).squeeze(0)
     return image
+
+def resize_to_square(image, size=256):
+    image = F.interpolate(image.unsqueeze(0),
+                          size=(size, size),
+                          mode='bilinear',
+                          align_corners=False).squeeze(0)
+    return image
+

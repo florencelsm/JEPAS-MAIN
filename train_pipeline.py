@@ -77,13 +77,9 @@ def train(audio_mode: str = "spectrogram") -> None:
         best_loss = float("inf")
         progress = tqdm(loader, desc=f"Epoch {epoch+1}/{exp_cfg['MAX_EPOCHS']}", leave=False)
         for data in progress:
-            all_loss = []
-            for waveform, image in zip(data["waveform"], data["image"]):
-                audio, images = waveform.to(device).unsqueeze(0), image.to(device).unsqueeze(0)
-                preds, targets = jepa.forward_base(audio=audio, image=images)
-                current_loss = criterion(preds, targets)
-                all_loss.append(current_loss)
-            loss = torch.stack(all_loss).mean()
+            audio, images = data["waveform"].to(device).unsqueeze(0), data["image"].to(device).unsqueeze(0)
+            preds, targets = jepa.forward_base(audio=audio, image=images)
+            loss = criterion(preds, targets)
 
             optimizer.zero_grad()
             loss.backward()

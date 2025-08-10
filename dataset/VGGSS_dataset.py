@@ -2,8 +2,9 @@ from torch.utils.data import Dataset
 import json
 from PIL import Image
 from transformers import AutoImageProcessor, AutoFeatureExtractor
-from dataset.dataset_utils import load_audio, unnormalize_bbox, scale_bbox, get_bbox_ratio_img, crop_image, resize_to_divisible
-
+from dataset.dataset_utils import (load_audio, unnormalize_bbox, scale_bbox,
+                                  get_bbox_ratio_img, crop_image,
+                                  resize_to_divisible, resize_to_square)
 class VGGSS_Dataset(Dataset):
     def __init__(self,
                  audio_mode: str,
@@ -18,10 +19,10 @@ class VGGSS_Dataset(Dataset):
         self.img_processor = AutoImageProcessor.from_pretrained("facebook/dinov2-base")
         if not config["DO_CENTER_CROP"]:
             self.img_processor.do_center_crop = False
-        if not config["RESIZE"]:
+        if not config["RESIZE_DINO"]:
             self.img_processor.do_resize = False
         else:
-            self.img_processor.size["shortest_edge"] = config["RESIZE"]
+            self.img_processor.size["shortest_edge"] = config["RESIZE_DINO"]
         self.mode = config["MODE"]
         self._init_dataset(config["DATASET_PATH"])
     
@@ -42,12 +43,7 @@ class VGGSS_Dataset(Dataset):
         waveform = self.audio_processor(waveform,
                                         sampling_rate=sample_rate, 
                                         return_tensors="pt").input_values.squeeze(0)
-        image = Image.open(img_path)
-        if image.size[0] <= 14 or image.size[1] <= 14:
-            return None
-        image = self.img_processor(image, return_tensors="pt").pixel_values.squeeze(0)
-        if image.shape[-2] <= 14 or image.shape[-1] <= 14:
-            return None
+        image = self.img_processor(image = Image.open(img_path), return_tensors="pt").pixel_values.squeeze(0)
         if self.config["CROP_AT_BBOX"] and self.mode == 'train':
             bbox = unnormalize_bbox(bbox, original_size)
             bbox = scale_bbox(bbox, original_size, image.shape[-2:])
@@ -61,13 +57,6 @@ class VGGSS_Dataset(Dataset):
                                    self.config["DYNAMIC_MARGIN"],)
                 if image.shape[-2] <= 14 or image.shape[-1] <= 14:
                     return None
-        image = resize_to_divisible(image, divisor=16, min_size=144)
+        if self.config["RESIZE"]:
+            image = resize_to_square(image, self.config["RESIZE"])
         return {"waveform": waveform, "image": image}
-    
-    @staticmethod
-    def collate_list(batch):
-        batch = [item for item in batch if item is not None]
-        data = {}
-        for k in batch[0].keys():
-            data[k] = [item[k] for item in batch]
-        return data
