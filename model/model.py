@@ -6,6 +6,7 @@ import numpy as np
 from typing import Callable, Dict, Tuple, Union
 from utils.types_utils import Number
 from transformers import ASTModel, Dinov2Model, Wav2Vec2Model
+
 class ImageAudioJEPA(JEPA_base, pl.LightningModule):
     def __init__(self,
                  vision_model: Dinov2Model,

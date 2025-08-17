@@ -11,7 +11,7 @@ from configs.load_config import load_config
 from pretrained.audio_models import load_audio_models             
 from pretrained.image_model import load_image_models
 from model.base_model import JEPA_base
-from dataset.VGGSS_dataset import VGGSS_Dataset
+from dataset.VGGSS_dataset_clean import VGGSS_Dataset
 
 def train(audio_mode: str = "spectrogram") -> None:
     config = load_config()
@@ -52,7 +52,7 @@ def train(audio_mode: str = "spectrogram") -> None:
                         pin_memory=exp_cfg.get("PIN_MEMORY", False),
                         persistent_workers=exp_cfg.get("PERSISTENT_WORKERS", False),
                         prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2),
-                        collate_fn=dataset.collate_list) # ali
+                        ) # ali
     
     audio_model = load_audio_models(audio_mode=audio_mode, device=device)
     vision_model = load_image_models(device=device)
@@ -77,7 +77,7 @@ def train(audio_mode: str = "spectrogram") -> None:
         best_loss = float("inf")
         progress = tqdm(loader, desc=f"Epoch {epoch+1}/{exp_cfg['MAX_EPOCHS']}", leave=False)
         for data in progress:
-            audio, images = data["waveform"].to(device).unsqueeze(0), data["image"].to(device).unsqueeze(0)
+            audio, images = data["waveform"].to(device).squeeze(0), data["image"].to(device).squeeze(0)
             preds, targets = jepa.forward_base(audio=audio, image=images)
             loss = criterion(preds, targets)
 
@@ -95,8 +95,9 @@ def train(audio_mode: str = "spectrogram") -> None:
         writer.add_scalar("train/best_loss_epoch", best_loss, epoch)
         print(f"Epoch {epoch+1}: best loss {best_loss:.4f}")
 
-        ckpt_path = ckpt_dir / f"jepa_{audio_mode}_epoch{epoch+1}.pt"
-        torch.save(jepa.state_dict(), ckpt_path)
+        if epoch % 10 == 0 and epoch != 0:
+            ckpt_path = ckpt_dir / f"jepa_{audio_mode}_epoch{epoch+1}.pt"
+            torch.save(jepa.state_dict(), ckpt_path)
 
     writer.close()
 

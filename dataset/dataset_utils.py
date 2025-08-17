@@ -2,6 +2,7 @@ import librosa
 import math
 import torch
 import torch.nn.functional as F
+import torchvision.transforms as T
 
 def load_audio(waveform_path, sample_rate):
     waveform, sample_rate = librosa.load(waveform_path, sr=sample_rate)
@@ -119,3 +120,18 @@ def resize_to_square(image, size=256):
                           align_corners=False).squeeze(0)
     return image
 
+def resize_with_aspect_ratio(image, target_size):
+    H, W = image.shape[-2:]
+    scale = target_size / max(H, W)
+    new_H, new_W = int(H * scale), int(W * scale)
+    image = F.interpolate(image.unsqueeze(0),
+                          size=(new_H, new_W),
+                          mode='bicubic',
+                          align_corners=False).squeeze(0)
+    box_h, box_w = image.shape[-2:]
+    pad_H = max(0, target_size - new_H)
+    pad_W = max(0, target_size - new_W)
+    padding = (pad_W // 2, pad_W - pad_W // 2,
+               pad_H // 2, pad_H - pad_H // 2)
+    image = F.pad(image, padding, value=0.0)
+    return image
