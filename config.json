@@ -1,5 +1,5 @@
 {"audio_image": 
-    {"dataset": {"DATASET_PATH": "/home/ec2-user/vggss/vggss_data_clean/clean_extracted_data.json",
+    {"dataset": {"DATASET_PATH": "/home/ec2-user/vggss/JEPAS-MAIN/vggss_data_clean/clean_extracted_data.json",
                  "MODE": "train",
                  "SHUFFLE_DATASET": true,
                  "DO_CENTER_CROP": false,

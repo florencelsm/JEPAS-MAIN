@@ -66,7 +66,7 @@ class VGGSS_Dataset(Dataset):
             return {"waveform": waveform, "image": image}
 
 if __name__ == "__main__":
-    config = {"DATASET_PATH": "/home/ec2-user/vggss/vggss_data_clean/clean_extracted_data.json",
+    config = {"DATASET_PATH": "/home/ec2-user/vggss/JEPAS-MAIN/vggss_data_clean/clean_extracted_data.json",
                  "MODE": "train",
                  "SHUFFLE_DATASET": True,
                  "DO_CENTER_CROP": False,
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     for i, batch in enumerate(dataloader):
         if i <= x:
             continue
-        Convert tensor to NumPy array
+        # Convert tensor to NumPy array
         img_tensor = batch['image'].squeeze().cpu()  # Remove batch dimension and move to CPU
 
         # Permute from (C, H, W) to (H, W, C) for OpenCV

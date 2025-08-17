@@ -180,3 +180,4 @@ cython_debug/
 /checkpoints
 /lightning_logs
 /vggss_data
+/vggss_data_clean
