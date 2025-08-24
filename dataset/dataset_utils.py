@@ -11,20 +11,20 @@ def load_audio(waveform_path, sample_rate):
 def unnormalize_bbox(bbox, original_size):
     W, H = original_size
     x_min, y_min, x_max, y_max = bbox
-    return [int(x_min * W),
-            int(y_min * H),
-            int(x_max * W),
-            int(y_max * H)]
+    return [x_min * W,
+            y_min * H,
+            x_max * W,
+            y_max * H]
 
 def scale_bbox(bbox, original_size, image_shape):
     New_H, New_W = image_shape
     W, H = original_size
     scale_x = New_W / W
     scale_y = New_H / H
-    return [int(bbox[0] * scale_x),
-            int(bbox[1] * scale_y),
-            int(bbox[2] * scale_x),
-            int(bbox[3] * scale_y),]
+    return [bbox[0] * scale_x,
+            bbox[1] * scale_y,
+            bbox[2] * scale_x,
+            bbox[3] * scale_y,]
 
 def get_bbox_ratio_img(bbox, image_shape):
     H, W = image_shape

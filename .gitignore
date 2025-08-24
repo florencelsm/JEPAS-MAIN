@@ -181,3 +181,5 @@ cython_debug/
 /lightning_logs
 /vggss_data
 /vggss_data_clean
+/home/ec2-user/vggss/JEPAS-MAIN/vggss_data_clean
+/home/ec2-user/vggss/JEPAS-MAIN/vggss_data_clean.tar
