@@ -65,8 +65,12 @@ def plot_bbox(images, output, gt_bboxes, save_path, global_step, train=False):
     cv2.imwrite(f"{save_path}/output_image_{save_name}_{global_step}.png", images)
 
 @torch.no_grad()
-def compute_metrics(pred_output, gt_boxes, iou_threshold=0.5):
+def compute_metrics(pred_output, gt_boxes, iou_threshold=0.5, image_shape=None):
     pred_boxes = pred_output['pred_boxes']
+    if image_shape is not None:
+        img_h, img_w = image_shape
+        scale_factor = torch.tensor([img_w, img_h, img_w, img_h], device=bboxes.device)
+        gt_boxes = gt_boxes * scale_factor
     
     if pred_boxes.numel() == 0 or gt_boxes.numel() == 0:
         return {

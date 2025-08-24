@@ -162,7 +162,7 @@ def train(audio_mode: str = "spectrogram") -> None:
                 output = ISL.postprocess(output, images.shape[-2:])
                 if i % 10 == 0:
                     plot_bbox(images, output, bbox, figures_path, i)
-                metrics = compute_metrics(output, bbox)
+                metrics = compute_metrics(output, bbox, image_shape=images.shape[-2:])
                 val_metrics = {k: (val_metrics[k] + metrics[k]) for k in val_metrics}
                 val_step += 1
             
