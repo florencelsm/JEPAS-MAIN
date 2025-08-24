@@ -4,6 +4,7 @@ import json
 from PIL import Image
 from transformers import AutoImageProcessor, AutoFeatureExtractor
 import torchvision.transforms as T
+import random
 from dataset.dataset_utils import (load_audio, unnormalize_bbox, scale_bbox,
                                   get_bbox_ratio_img, crop_image,
                                   resize_to_divisible, resize_to_square, resize_with_aspect_ratio)
@@ -70,21 +71,13 @@ class VGGSS_Dataset(Dataset):
             else:
                 image = resize_to_square(image, self.config["RESIZE"])
         if self.config["RETURN_BBOX"]:
-            bounding_box = []
-            for box in bbox:
-                bounding_box.append(box)
+            if len(bbox) > 1:
+                bbox = random.choice(bbox)
+            else:
+                bbox = bbox[0]
+            bounding_box = torch.as_tensor(bbox, dtype=torch.float32).reshape(4)
             original_size = torch.as_tensor([original_size[1], original_size[0]], dtype=torch.float32)
             return {"waveform": waveform, "image": image, "bbox": bounding_box, "original_size": original_size}
-        else:
-            return {"waveform": waveform, "image": image}
-    
-    def collate_fn(self, batch):
-        waveform = torch.stack([item["waveform"] for item in batch])
-        image = torch.stack([item["image"] for item in batch])
-        if self.config["RETURN_BBOX"]:
-            bbox = [torch.as_tensor(item["bbox"], dtype=torch.float32) for item in batch]
-            original_size = torch.stack([item["original_size"] for item in batch])
-            return {"waveform": waveform, "image": image, "bbox": bbox, "original_size": original_size}
         else:
             return {"waveform": waveform, "image": image}
 

@@ -53,7 +53,6 @@ def train(audio_mode: str = "spectrogram") -> None:
                            "'waveforms' and 'images' subfolders.")
     
     train_loader = DataLoader(train_dataset,
-                              collate_fn=train_dataset.collate_fn,
                               batch_size=exp_cfg["BATCH_SIZE"],
                               shuffle=data_cfg.get("SHUFFLE_DATASET", True),
                               num_workers=exp_cfg.get("NUM_WORKERS", 0),
@@ -62,7 +61,6 @@ def train(audio_mode: str = "spectrogram") -> None:
                               prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2),)
     
     test_loader = DataLoader(test_dataset,
-                             collate_fn=test_dataset.collate_fn,
                              batch_size=1,
                              shuffle=False,
                              num_workers=exp_cfg.get("NUM_WORKERS", 0),
@@ -108,26 +106,24 @@ def train(audio_mode: str = "spectrogram") -> None:
         best_loss = float("inf")
         progress = tqdm(train_loader, desc=f"Epoch {epoch+1}/{exp_cfg['MAX_EPOCHS']}", leave=False)
         ISL.train()
-        for data in progress:
+        for i, data in enumerate(progress):
             audio = data["waveform"].to(device).squeeze(0)
             images = data["image"].to(device).squeeze(0)
-            for i, _ in enumerate(data["bbox"]):
-                data["bbox"][i] = data["bbox"][i].to(device)
+            bbox = data["bbox"].to(device)
             
             output = ISL(audio=audio, image=images)
-            
-            loss = criterion(output, data["bbox"])
+            loss = criterion(output, bbox)
 
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
 
-            if global_step % 50 == 0:
+            if i % 50 == 0:
                 ISL.eval()
                 with torch.no_grad():
                     output = ISL(audio=audio, image=images)
                     output = ISL.postprocess(output, images.shape[-2:])
-                    plot_bbox(images, output, data["bbox"], figures_path, global_step, train=True)
+                    plot_bbox(images, output, data["bbox"], figures_path, i, train=True)
                 ISL.train()
 
             writer.add_scalar("train/loss", loss.item(), global_step)
@@ -154,17 +150,19 @@ def train(audio_mode: str = "spectrogram") -> None:
         val_step = 0
         val_metrics = {'precision': 0, 'recall': 0, 'f1': 0, 'mean_iou': 0, 'num_predictions': 0, 'num_gt': 0}
         with torch.no_grad():
-            for data in test_progress:
-                audio, images = data["waveform"].to(device), data["image"].to(device)
-                for i, _ in enumerate(data["bbox"]):
-                    data["bbox"][i] = data["bbox"][i].to(device)
+            for i, data in enumerate(test_progress):
+                audio = data["waveform"].to(device)
+                images = data["image"].to(device)
+                bbox = data["bbox"].to(device)
+                
                 output = ISL(audio=audio, image=images)
-                val_loss = criterion(output, data["bbox"])
+                val_loss = criterion(output, bbox)
+                
                 total_val_loss += val_loss.item()
                 output = ISL.postprocess(output, images.shape[-2:])
-                if val_step % 10 == 0:
-                    plot_bbox(images, output, data["bbox"], figures_path, val_step)
-                metrics = compute_metrics(output, data["bbox"])
+                if i % 10 == 0:
+                    plot_bbox(images, output, bbox, figures_path, i)
+                metrics = compute_metrics(output, bbox)
                 val_metrics = {k: (val_metrics[k] + metrics[k]) for k in val_metrics}
                 val_step += 1
             

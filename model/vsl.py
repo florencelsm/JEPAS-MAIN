@@ -7,8 +7,8 @@ class ImageAudioEncoderLayer(nn.Module):
         super().__init__()
         self.cross_attn = nn.MultiheadAttention(dim, num_heads, batch_first=True)
         self.mlp = nn.Sequential(nn.Linear(dim, dim * mlp_expand),
-                                           nn.GELU(),
-                                           nn.Linear(dim * mlp_expand, dim))
+                                 nn.GELU(),
+                                 nn.Linear(dim * mlp_expand, dim))
         self.norm1 = nn.LayerNorm(dim)
         self.norm2 = nn.LayerNorm(dim)
     
@@ -35,8 +35,8 @@ class BoxAudioImageDecoderLayer(nn.Module):
         self.self_attn = nn.MultiheadAttention(dim, num_heads, batch_first=True)
         self.cross_attn = nn.MultiheadAttention(dim, num_heads, batch_first=True)
         self.mlp = nn.Sequential(nn.Linear(dim, dim * mlp_expand),
-                                           nn.GELU(),
-                                           nn.Linear(dim * mlp_expand, dim))
+                                 nn.GELU(),
+                                 nn.Linear(dim * mlp_expand, dim))
         self.norm1 = nn.LayerNorm(dim)
         self.norm2 = nn.LayerNorm(dim)
         self.norm3 = nn.LayerNorm(dim)
@@ -67,7 +67,7 @@ class VisualSoundLocalizer(nn.Module):
     def __init__(self,
                  image_encoder,
                  audio_encoder,
-                 num_object_queries=20,
+                 num_object_queries=5,
                  freeze_backbones=False) -> None:
         super().__init__()
         self.image_encoder = image_encoder
@@ -83,36 +83,27 @@ class VisualSoundLocalizer(nn.Module):
         self.image_audio_encoder = ImageAudioEncoder(dim)
         self.box_audio_image_decoder = BoxAudioImageDecoder(dim)
         self.box_queries = nn.Embedding(num_object_queries, dim)
+        self.avg_pool = nn.AdaptiveAvgPool1d(1)
         self.bbox_head = nn.Sequential(nn.Linear(dim, dim),
                                        nn.ReLU(inplace=True),
                                        nn.Linear(dim, dim),
                                        nn.ReLU(inplace=True),
                                        nn.Linear(dim, 4))
-        self.score_head = nn.Linear(dim, 1)
 
     def forward(self, image: torch.Tensor, audio: torch.Tensor) -> torch.Tensor:
         img_emb = self.image_encoder(pixel_values=image).last_hidden_state
+        img_emb = img_emb[:, 1:, :]
         aud_emb = self.audio_encoder(audio).last_hidden_state
-
         encoder_output = self.image_audio_encoder(img_emb, aud_emb)
-        decoder_output = self.box_audio_image_decoder(self.box_queries.weight, encoder_output)
-        
+        decoder_output = self.avg_pool(encoder_output.transpose(-1, -2).contiguous()).squeeze(-1)
         boxes = self.bbox_head(decoder_output).sigmoid()
-        scores = self.score_head(decoder_output)
-        
-        return {'pred_boxes': boxes, 'pred_logits': scores}
+        return {'pred_boxes': boxes}
     
     @torch.no_grad()
     def postprocess(self, output, image_size) -> torch.Tensor:
-        bboxes, scores = output["pred_boxes"], output["pred_logits"]
-        bboxes, scores = bboxes[0], scores[0] # Inferece supports batch size of 1
-        scores = scores.sigmoid().squeeze(-1)
-        keep = scores > 0.5
-        bboxes = bboxes[keep]
-        scores = scores[keep]
+        bboxes = output["pred_boxes"]
         bboxes = box_cxcywh_to_xyxy(bboxes)
         img_h, img_w = image_size
         scale_factor = torch.tensor([img_w, img_h, img_w, img_h], device=bboxes.device)
         bboxes = bboxes * scale_factor
-        print(f"Bboxes: {bboxes.shape}, {bboxes}")
-        return {'pred_boxes': bboxes, 'pred_scores': scores}
+        return {'pred_boxes': bboxes}

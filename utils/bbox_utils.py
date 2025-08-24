@@ -47,73 +47,50 @@ def plot_bbox(images, output, gt_bboxes, save_path, global_step, train=False):
     images = images[0].permute(1, 2, 0).cpu().numpy()
     images = cv2.cvtColor((images), cv2.COLOR_RGB2BGR) * 255
     bboxes = output["pred_boxes"].cpu().numpy()
-    scores = output["pred_scores"].cpu().numpy()
 
     for i, bbox in enumerate(bboxes):
         x0, y0, x1, y1 = bbox
         x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
         cv2.rectangle(images, (x0, y0), (x1, y1), (0, 255, 0), 2)
-        cv2.putText(images, f"{scores[i]:.2f}", (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        if train:
+            break
     
     for i, bbox in enumerate(gt_bboxes):
-        for bbox_i in bbox:
-            x0, y0, x1, y1 = bbox_i
-            x0, y0, x1, y1 = int(x0 * W), int(y0 * H), int(x1 * W), int(y1 * H)
-            cv2.rectangle(images, (x0, y0), (x1, y1), (0, 0, 255), 2)
+        x0, y0, x1, y1 = bbox
+        x0, y0, x1, y1 = int(x0 * W), int(y0 * H), int(x1 * W), int(y1 * H)
+        cv2.rectangle(images, (x0, y0), (x1, y1), (0, 0, 255), 2)
         if train:
             break
     save_name = 'train' if train else 'val'
     cv2.imwrite(f"{save_path}/output_image_{save_name}_{global_step}.png", images)
 
 @torch.no_grad()
-def compute_metrics(pred_output, gt_boxes_list, iou_threshold=0.5):
+def compute_metrics(pred_output, gt_boxes, iou_threshold=0.5):
     pred_boxes = pred_output['pred_boxes']
-    pred_scores = pred_output['pred_scores']
     
-    if len(gt_boxes_list) > 0:
-        gt_boxes = gt_boxes_list[0] if len(gt_boxes_list) == 1 else torch.cat(gt_boxes_list, dim=0)
-    else:
-        gt_boxes = torch.empty(0, 4, device=pred_boxes.device)
-    
-    if len(pred_boxes) == 0 or len(gt_boxes) == 0:
-        return {'precision': 0.0, 'recall': 0.0, 'f1': 0.0, 'mean_iou': 0.0,
-                'num_predictions': 0, 'num_gt': len(gt_boxes)}
-    
+    if pred_boxes.numel() == 0 or gt_boxes.numel() == 0:
+        return {
+            'precision': 0.0,
+            'recall': 0.0,
+            'f1': 0.0,
+            'mean_iou': 0.0,
+            'num_predictions': len(pred_boxes),
+            'num_gt': len(gt_boxes)
+        }
+
     ious, _ = box_iou(pred_boxes, gt_boxes)
+    iou = ious.item()
+    tp = 1 if iou >= iou_threshold else 0
     
-    matched_gt = torch.zeros(len(gt_boxes), dtype=torch.bool, device=gt_boxes.device)
-    matched_ious = []
-    
-    sorted_indices = torch.argsort(pred_scores, descending=True)
-    
-    tp = 0
-    for i in range(len(sorted_indices)):
-        pred_idx = sorted_indices[i].item()
-        
-        pred_ious = ious[pred_idx]
-        
-        if len(pred_ious.shape) == 0:
-            best_iou = pred_ious
-            best_gt_idx = 0
-        else:
-            best_iou, best_gt_idx = torch.max(pred_ious, dim=0)
-            best_gt_idx = best_gt_idx.item()
-        
-        if best_iou > iou_threshold and not matched_gt[best_gt_idx]:
-            tp += 1
-            matched_gt[best_gt_idx] = True
-            matched_ious.append(best_iou.item())
-    
-    precision = tp / len(pred_boxes)
-    recall = tp / len(gt_boxes)
+    precision = tp / 1.0
+    recall = tp / float(len(gt_boxes))
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
-    mean_iou = sum(matched_ious) / len(matched_ious) if matched_ious else 0.0
-    
+
     return {
-        'precision': precision, 
-        'recall': recall, 
-        'f1': f1, 
-        'mean_iou': mean_iou, 
-        'num_predictions': len(pred_boxes), 
+        'precision': precision,
+        'recall': recall,
+        'f1': f1,
+        'mean_iou': iou,
+        'num_predictions': len(pred_boxes),
         'num_gt': len(gt_boxes)
     }
