@@ -69,7 +69,7 @@ def compute_metrics(pred_output, gt_boxes, iou_threshold=0.5, image_shape=None):
     pred_boxes = pred_output['pred_boxes']
     if image_shape is not None:
         img_h, img_w = image_shape
-        scale_factor = torch.tensor([img_w, img_h, img_w, img_h], device=bboxes.device)
+        scale_factor = torch.tensor([img_w, img_h, img_w, img_h], device=pred_boxes.device)
         gt_boxes = gt_boxes * scale_factor
     
     if pred_boxes.numel() == 0 or gt_boxes.numel() == 0:
