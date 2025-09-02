@@ -184,4 +184,13 @@ cython_debug/
 /home/ec2-user/vggss/JEPAS-MAIN/vggss_data_clean
 /home/ec2-user/vggss/JEPAS-MAIN/vggss_data_clean.tar
 /figures
-
+/figures_spectrogram
+/lightning_logs_spectrogram
+/figures_spectrogram_imageQ_audioKV
+/figures_spectrogram_audioQ_imageKV
+/figures_waveform_audioQ_imageKV
+/figures_spectogram_imageQ_audioKV_MULTIBOX
+/figures_test
+/figuresspectrogram_audioQ_imageKV_6epoch
+/figures_spectogram_audioQ_imageKV_MULTIBOX_new
+/figures_spectogram_imageQ_audioKV_MULTIBOX_new

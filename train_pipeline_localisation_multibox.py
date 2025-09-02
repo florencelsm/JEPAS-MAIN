@@ -11,10 +11,10 @@ from tqdm.auto import tqdm
 from configs.load_config import load_config
 from pretrained.audio_models import load_audio_models             
 from pretrained.image_model import load_image_models
-from model.vsl import VisualSoundLocalizer
-from dataset.VGGSS_dataset_clean import VGGSS_Dataset
-from losses.hungarian_matcher_loss import MatchingLoss
-from utils.bbox_utils import plot_bbox, compute_metrics
+from model.vsl_multibox import VisualSoundLocalizer
+from dataset.VGGSS_dataset_clean_multibox import VGGSS_Dataset
+from losses.hungarian_matcher_loss_multibox import MatchingLoss
+from utils.bbox_utils_multibox import plot_bbox, compute_metrics
 
 def train(audio_mode: str = "spectrogram") -> None:
     config = load_config()
@@ -53,6 +53,7 @@ def train(audio_mode: str = "spectrogram") -> None:
                            "'waveforms' and 'images' subfolders.")
     
     train_loader = DataLoader(train_dataset,
+                              collate_fn=train_dataset.collate_fn,
                               batch_size=exp_cfg["BATCH_SIZE"],
                               shuffle=data_cfg.get("SHUFFLE_DATASET", True),
                               num_workers=exp_cfg.get("NUM_WORKERS", 0),
@@ -61,6 +62,7 @@ def train(audio_mode: str = "spectrogram") -> None:
                               prefetch_factor=exp_cfg.get("PREFETCH_FACTOR", 2),)
     
     test_loader = DataLoader(test_dataset,
+                             collate_fn=test_dataset.collate_fn,
                              batch_size=1,
                              shuffle=False,
                              num_workers=exp_cfg.get("NUM_WORKERS", 0),
@@ -92,7 +94,7 @@ def train(audio_mode: str = "spectrogram") -> None:
                                    {'params': ISL_param, 'lr': 1e-4},],
                                    betas=(0.9, 0.999),
                                    weight_decay=0.01)
-    criterion = MatchingLoss()
+    criterion = MatchingLoss(eos_coef=0.3)
 
     writer = SummaryWriter(track_cfg["LOG_DIR"])
     ckpt_dir = Path(track_cfg["CHECKPOINT_DIR"], "localisation")
@@ -109,7 +111,7 @@ def train(audio_mode: str = "spectrogram") -> None:
         for i, data in enumerate(progress):
             audio = data["waveform"].to(device).squeeze(0)
             images = data["image"].to(device).squeeze(0)
-            bbox = data["bbox"].to(device)
+            bbox = [b.to(device) for b in data["bbox"]]
             
             output = ISL(audio=audio, image=images)
             loss = criterion(output, bbox)
@@ -118,12 +120,12 @@ def train(audio_mode: str = "spectrogram") -> None:
             optimizer.step()
             optimizer.zero_grad()
 
-            if i % 50 == 0:
+            if i % 10 == 0:
                 ISL.eval()
                 with torch.no_grad():
                     output = ISL(audio=audio, image=images)
                     output = ISL.postprocess(output, images.shape[-2:])
-                    plot_bbox(images, output, data["bbox"], figures_path, i, train=True)
+                    plot_bbox(images, output, bbox, figures_path, i, train=True)
                 ISL.train()
 
             writer.add_scalar("train/loss", loss.item(), global_step)
@@ -153,14 +155,14 @@ def train(audio_mode: str = "spectrogram") -> None:
             for i, data in enumerate(test_progress):
                 audio = data["waveform"].to(device)
                 images = data["image"].to(device)
-                bbox = data["bbox"].to(device)
+                bbox = [b.to(device) for b in data["bbox"]]
                 
                 output = ISL(audio=audio, image=images)
                 val_loss = criterion(output, bbox)
                 
                 total_val_loss += val_loss.item()
                 output = ISL.postprocess(output, images.shape[-2:])
-                if i % 10 == 0:
+                if i % 2 == 0:
                     plot_bbox(images, output, bbox, figures_path, i)
                 metrics = compute_metrics(output, bbox, image_shape=images.shape[-2:])
                 val_metrics = {k: (val_metrics[k] + metrics[k]) for k in val_metrics}
