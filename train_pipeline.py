@@ -25,7 +25,7 @@ def train(audio_mode: str = "spectrogram") -> None:
     torch.cuda.manual_seed_all(exp_cfg.get("SEED", 0))
     random.seed(exp_cfg.get("SEED", 0))
     np.random.seed(exp_cfg.get("SEED", 0))
-    torch.set_float32_matmul_precision(runtime_cfg.get("FLOAT32_MATMUL_PRECISION", "medium")) # ali chenged to highest in config.json
+    torch.set_float32_matmul_precision(runtime_cfg.get("FLOAT32_MATMUL_PRECISION", "medium")) 
 
     device = runtime_cfg.get("ACCELERATOR", "cuda")
 

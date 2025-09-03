@@ -33,8 +33,7 @@ class JEPA_base(nn.Module):
         self.post_enc_norm_jepa = (
             nn.LayerNorm(self.embed_dim) if self.post_enc_norm else nn.Identity()
         )
-
-        # ali
+        
         # student
         self.audio_encoder = audio_model
         if self.mode == "test":
